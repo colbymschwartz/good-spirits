@@ -6139,7 +6139,6 @@ function BatchCalculator({
 }) {
   const [servings, setServings] = useState(4);
   const [variationIdx, setVariationIdx] = useState(cocktail.variations.findIndex(v => v.canon) >= 0 ? cocktail.variations.findIndex(v => v.canon) : 0);
-  const [dilution, setDilution] = useState(20);
   const variation = cocktail.variations[variationIdx];
   const batchSpec = useMemo(() => {
     if (!variation || !variation.spec) return [];
@@ -6150,19 +6149,24 @@ function BatchCalculator({
         isScalable: false
       };
       const scaledAmount = parsed.amount * servings;
-      const displayUnit = parsed.unit === "dash" || parsed.unit === "dashes" ? scaledAmount === 1 ? "dash" : "dashes" : parsed.unit;
+      const isOz = parsed.unit === "oz";
+      const displayUnit = parsed.unit === "dash" || parsed.unit === "dashes" ? scaledAmount === 1 ? "dash" : "dashes" : parsed.unit === "cube" || parsed.unit === "cubes" ? scaledAmount === 1 ? "cube" : "cubes" : parsed.unit;
       return {
         original: line,
         ingredient: parsed.ingredient,
         amount: formatAmount(scaledAmount),
         unit: displayUnit,
         isScalable: true,
-        rawAmount: scaledAmount
+        rawAmount: scaledAmount,
+        isOz,
+        perDrink: !isOz
       };
     });
   }, [variation, servings]);
-  const totalOz = batchSpec.reduce((sum, item) => item.isScalable && item.unit === "oz" ? sum + item.rawAmount : sum, 0);
-  const totalDilutionOz = totalOz * (dilution / 100);
+  const liquidItems = batchSpec.filter(item => item.isScalable && item.isOz);
+  const perDrinkItems = batchSpec.filter(item => item.isScalable && item.perDrink);
+  const garnishItems = batchSpec.filter(item => !item.isScalable);
+  const totalOz = liquidItems.reduce((sum, item) => sum + item.rawAmount, 0);
   return /*#__PURE__*/React.createElement("div", {
     className: "modal active",
     onClick: e => {
@@ -6201,37 +6205,31 @@ function BatchCalculator({
     value: servings,
     onChange: e => setServings(Math.max(1, parseInt(e.target.value) || 1))
   })), /*#__PURE__*/React.createElement("div", {
-    className: "batch-input-row"
-  }, /*#__PURE__*/React.createElement("label", null, "Dilution %"), /*#__PURE__*/React.createElement("input", {
-    type: "number",
-    min: "0",
-    max: "40",
-    value: dilution,
-    onChange: e => setDilution(Math.max(0, parseInt(e.target.value) || 0))
-  })), /*#__PURE__*/React.createElement("div", {
     className: "batch-result"
   }, /*#__PURE__*/React.createElement("div", {
     className: "batch-result-header"
-  }, "Batch for ", servings, " Serving", servings > 1 ? "s" : ""), batchSpec.map((item, i) => /*#__PURE__*/React.createElement("div", {
-    key: i,
-    className: "batch-item"
-  }, /*#__PURE__*/React.createElement("span", {
-    className: "batch-item-name"
-  }, item.isScalable ? item.ingredient : item.original), item.isScalable && /*#__PURE__*/React.createElement("span", {
-    className: "batch-item-amount"
-  }, item.amount, " ", item.unit))), dilution > 0 && totalOz > 0 && /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("div", {
-    className: "divider",
+  }, "Batch for ", servings, " Serving", servings > 1 ? "s" : ""), liquidItems.length > 0 && /*#__PURE__*/React.createElement("div", {
     style: {
-      margin: "8px 0"
+      fontSize: "11px",
+      color: "var(--accent-gold-dim)",
+      marginBottom: "6px",
+      textTransform: "uppercase",
+      letterSpacing: "0.5px"
     }
-  }), /*#__PURE__*/React.createElement("div", {
+  }, "Combine"), liquidItems.map((item, i) => /*#__PURE__*/React.createElement("div", {
+    key: "oz-" + i,
     className: "batch-item"
   }, /*#__PURE__*/React.createElement("span", {
     className: "batch-item-name"
-  }, "Water (dilution)"), /*#__PURE__*/React.createElement("span", {
+  }, item.ingredient), /*#__PURE__*/React.createElement("span", {
     className: "batch-item-amount"
-  }, totalDilutionOz.toFixed(1), " oz")), /*#__PURE__*/React.createElement("div", {
-    className: "batch-item"
+  }, item.amount, " ", item.unit))), totalOz > 0 && /*#__PURE__*/React.createElement("div", {
+    className: "batch-item",
+    style: {
+      borderTop: "1px solid var(--accent-gold-dim)",
+      marginTop: "4px",
+      paddingTop: "6px"
+    }
   }, /*#__PURE__*/React.createElement("span", {
     className: "batch-item-name",
     style: {
@@ -6239,14 +6237,41 @@ function BatchCalculator({
     }
   }, "Total Volume"), /*#__PURE__*/React.createElement("span", {
     className: "batch-item-amount"
-  }, (totalOz + totalDilutionOz).toFixed(1), " oz")))), /*#__PURE__*/React.createElement("div", {
+  }, formatAmount(totalOz), " oz")), perDrinkItems.length > 0 && /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("div", {
     style: {
+      fontSize: "11px",
+      color: "var(--accent-gold-dim)",
       marginTop: "12px",
-      fontSize: "12px",
-      color: "var(--text-dim)",
-      lineHeight: 1.5
+      marginBottom: "6px",
+      textTransform: "uppercase",
+      letterSpacing: "0.5px"
     }
-  }, "Pre-batch tip: Mix all liquid ingredients, add the dilution water, and refrigerate. Serve over fresh ice or straight from the fridge. Standard dilution is 20% for stirred drinks, 25% for shaken."))));
+  }, "Per drink"), perDrinkItems.map((item, i) => {
+    const perServing = item.rawAmount / servings;
+    const perUnit = perServing === 1 ? item.unit.replace(/s$/, "") : item.unit;
+    return /*#__PURE__*/React.createElement("div", {
+      key: "pd-" + i,
+      className: "batch-item"
+    }, /*#__PURE__*/React.createElement("span", {
+      className: "batch-item-name"
+    }, item.ingredient), /*#__PURE__*/React.createElement("span", {
+      className: "batch-item-amount"
+    }, formatAmount(perServing), " ", perUnit, " each"));
+  })), garnishItems.length > 0 && /*#__PURE__*/React.createElement(React.Fragment, null, perDrinkItems.length === 0 && /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: "11px",
+      color: "var(--accent-gold-dim)",
+      marginTop: "12px",
+      marginBottom: "6px",
+      textTransform: "uppercase",
+      letterSpacing: "0.5px"
+    }
+  }, "Per drink"), garnishItems.map((item, i) => /*#__PURE__*/React.createElement("div", {
+    key: "g-" + i,
+    className: "batch-item"
+  }, /*#__PURE__*/React.createElement("span", {
+    className: "batch-item-name"
+  }, item.original))))))));
 }
 
 // ========== RENDER ==========
