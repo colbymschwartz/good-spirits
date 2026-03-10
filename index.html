@@ -1278,6 +1278,17 @@ const COCKTAILS_PART1 = [{
     ratioNotes: "Substituting mezcal for gin creates a smokier, earthier Negroni that's less refined but more complex for some palates. Mezcal's smoke and Campari's bitterness create a more assertive drink—the sweet vermouth becomes more essential for balance. This variation demonstrates how the Negroni's structure accommodates different spirits.",
     brandRecs: "Del Maguey Vida mezcal, Campari, Carpano Antica Formula."
   }, {
+    name: "White Mezcal Negroni",
+    canon: false,
+    spec: ["1.5 oz mezcal", "0.5 oz Salers gentiane", "0.5 oz Luxardo Bianco bitters", "1 oz blanc vermouth", "1 dash orange bitters (optional)", "ice"],
+    ingredients: ["mezcal", "salers", "luxardo-bianco", "blanc-vermouth", "orange-bitters"],
+    glass: "rocks",
+    garnish: "Grapefruit twist",
+    method: "Stir",
+    steps: "Stir mezcal, Salers, Luxardo Bianco, and blanc vermouth with ice for 10-15 seconds. Add a dash of orange bitters if desired. Strain into a rocks glass with a large ice cube. Express grapefruit twist and drop in.",
+    ratioNotes: "This riff breaks the classic 1:1:1 Negroni ratio by leading with mezcal at 1.5 oz, giving it a spirit-forward backbone of smoke and agave. The bitter component is split between Salers (earthy, gentian-root bitterness) and Luxardo Bianco (lighter, floral bitterness)—together they replace Campari's heavy red bitterness with something more nuanced and herbal. Blanc vermouth at 1 oz rounds the edges without the sweetness of Italian sweet vermouth. The optional orange bitters bridge the mezcal's smoke to the gentiane's earthiness. This is a drier, more complex Negroni for palates that want smoke and herb over candy-red sweetness.",
+    brandRecs: "Del Maguey Vida or Banhez mezcal, Salers Gentiane, Luxardo Bitter Bianco, Dolin Blanc vermouth."
+  }, {
     name: "Boulevardier",
     canon: false,
     spec: ["1 oz bourbon", "1 oz Campari", "1 oz sweet vermouth", "ice"],
@@ -4650,7 +4661,7 @@ function CocktailsTab({
     }
     if (search) {
       const q = search.toLowerCase();
-      results = results.filter(c => c.name.toLowerCase().includes(q) || c.variations.some(v => v.name.toLowerCase().includes(q)) || c.tags && c.tags.some(t => t.toLowerCase().includes(q)));
+      results = results.filter(c => c.name.toLowerCase().includes(q) || c.spirit.toLowerCase().includes(q) || c.variations.some(v => v.name.toLowerCase().includes(q) || v.spec && v.spec.some(s => s.toLowerCase().includes(q)) || v.ingredients && v.ingredients.some(ing => ing.toLowerCase().includes(q))) || c.tags && c.tags.some(t => t.toLowerCase().includes(q)));
     }
     if (spiritFilter !== "all") results = results.filter(c => c.spirit === spiritFilter);
     if (styleFilter !== "all") results = results.filter(c => c.style === styleFilter);
