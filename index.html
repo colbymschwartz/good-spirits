@@ -4663,7 +4663,7 @@ function CocktailsTab({
       const q = search.toLowerCase();
       results = results.filter(c => c.name.toLowerCase().includes(q) || c.spirit.toLowerCase().includes(q) || c.variations.some(v => v.name.toLowerCase().includes(q) || v.spec && v.spec.some(s => s.toLowerCase().includes(q)) || v.ingredients && v.ingredients.some(ing => ing.toLowerCase().includes(q))) || c.tags && c.tags.some(t => t.toLowerCase().includes(q)));
     }
-    if (spiritFilter !== "all") results = results.filter(c => c.spirit === spiritFilter);
+    if (spiritFilter !== "all") results = results.filter(c => c.spirit === spiritFilter || c.variations.some(v => v.spec && v.spec.some(s => s.toLowerCase().includes(spiritFilter)) || v.ingredients && v.ingredients.some(ing => ing.toLowerCase().includes(spiritFilter))));
     if (styleFilter !== "all") results = results.filter(c => c.style === styleFilter);
     if (moodFilter !== "all") results = results.filter(c => c.tags && c.tags.includes(moodFilter));
     return results;
