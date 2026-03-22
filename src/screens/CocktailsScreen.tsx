@@ -109,32 +109,69 @@ export function CocktailsScreen() {
 
     const stf = styleFilter !== 'all' ? styleFilter : '';
 
-    return results.map((c) => {
-      let bestIdx = 0;
-      if (q || sf || stf) {
-        // If search matches the family name directly, show first variation
-        if (q && c.name.toLowerCase().includes(q)) return { cocktail: c, varIdx: 0 };
-
-        // If style filter matches the parent style exactly, show first variation
-        if (stf && c.style === stf && !q && !sf) return { cocktail: c, varIdx: 0 };
-
-        const matchIdx = c.variations.findIndex((v) => {
-          const matchesSearch = q && (
+    // When searching, expand matching variations into separate cards
+    if (q) {
+      const expanded: { cocktail: typeof results[0]; varIdx: number }[] = [];
+      results.forEach((c) => {
+        // Find ALL variations that match the search
+        const matchingVarIndices: number[] = [];
+        c.variations.forEach((v, i) => {
+          if (
             v.name.toLowerCase().includes(q) ||
             (v.spec && v.spec.some((s: string) => s.toLowerCase().includes(q))) ||
             (v.ingredients && v.ingredients.some((ing: string) => ing.toLowerCase().includes(q)))
-          );
+          ) {
+            matchingVarIndices.push(i);
+          }
+        });
+
+        if (matchingVarIndices.length > 0) {
+          // If the family name itself matches, show the first variation as the family card
+          // PLUS any additional variations that specifically match
+          if (c.name.toLowerCase().includes(q)) {
+            expanded.push({ cocktail: c, varIdx: 0 });
+            // Also add non-first variations that match by name specifically
+            matchingVarIndices.forEach((i) => {
+              if (i > 0 && c.variations[i].name.toLowerCase().includes(q)) {
+                expanded.push({ cocktail: c, varIdx: i });
+              }
+            });
+          } else {
+            // Family name doesn't match — show each matching variation as its own card
+            matchingVarIndices.forEach((i) => {
+              expanded.push({ cocktail: c, varIdx: i });
+            });
+          }
+        } else if (
+          c.name.toLowerCase().includes(q) ||
+          c.spirit.toLowerCase().includes(q) ||
+          c.style.toLowerCase().includes(q) ||
+          (c.tags && c.tags.some((t: string) => t.toLowerCase().includes(q)))
+        ) {
+          // Family-level match (name, spirit, style, tags) — show first variation
+          expanded.push({ cocktail: c, varIdx: 0 });
+        }
+      });
+      return expanded;
+    }
+
+    // No search — just spirit/style/mood filters, one card per family with best variation
+    return results.map((c) => {
+      let bestIdx = 0;
+      if (sf || stf) {
+        if (stf && c.style === stf) return { cocktail: c, varIdx: 0 };
+
+        const matchIdx = c.variations.findIndex((v) => {
           const matchesSpirit = sf && (
             (v.spec && v.spec.some((s: string) => s.toLowerCase().includes(sf))) ||
             (v.ingredients && v.ingredients.some((ing: string) => ing.toLowerCase().includes(sf)))
           );
-          // For frozen style filter, find the frozen variation specifically
           const matchesStyle = stf === 'frozen' && c.style !== 'frozen' && (
             v.name.toLowerCase().includes('frozen') ||
             (v.method && v.method.toLowerCase() === 'blend') ||
             (v.method && v.method.toLowerCase() === 'blending')
           );
-          return matchesSearch || matchesSpirit || matchesStyle;
+          return matchesSpirit || matchesStyle;
         });
         if (matchIdx >= 0) bestIdx = matchIdx;
       }
@@ -160,7 +197,7 @@ export function CocktailsScreen() {
     [handlePress]
   );
 
-  const keyExtractor = useCallback((item: { cocktail: Cocktail; varIdx: number }) => item.cocktail.id, []);
+  const keyExtractor = useCallback((item: { cocktail: Cocktail; varIdx: number }) => item.cocktail.id + '-' + item.varIdx, []);
 
 
   const handleRefresh = useCallback(() => {
