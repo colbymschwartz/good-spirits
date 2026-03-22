@@ -86,6 +86,7 @@ export function CocktailsScreen() {
   const [showImport, setShowImport] = useState(false);
   const [showFabMenu, setShowFabMenu] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const [dotdDismissed, setDotdDismissed] = useState(false);
   const customCocktails = useAppStore((s) => s.customCocktails);
   const customVariations = useAppStore((s) => s.customVariations);
   const myBar = useAppStore((s) => s.myBar);
@@ -283,23 +284,34 @@ export function CocktailsScreen() {
   const spiritIcon = SPIRIT_ICONS[drinkOfTheDay.spirit] || '✨';
   const dotdStyleLabel = STYLE_LABELS[drinkOfTheDay.style] || drinkOfTheDay.style;
 
-  const ListHeader = useMemo(() => (
-    <Pressable
-      style={styles.dotdCard}
-      onPress={() => handlePress(drinkOfTheDay, 0)}
-    >
-      <Text style={styles.dotdHeader}>🍸 Drink of the Day</Text>
-      <View style={styles.dotdBody}>
-        <Text style={styles.dotdEmoji}>{getCocktailEmoji(drinkOfTheDay)}</Text>
-        <View style={styles.dotdInfo}>
-          <Text style={styles.dotdName}>{drinkOfTheDay.name}</Text>
-          <Text style={styles.dotdMeta}>
-            {spiritIcon} {drinkOfTheDay.spirit.charAt(0).toUpperCase() + drinkOfTheDay.spirit.slice(1)} · {dotdStyleLabel}
-          </Text>
-        </View>
+  // Hide DOTD when searching, filtering, or dismissed
+  const showDotd = !dotdDismissed && !search.trim() && spiritFilter === 'all' && styleFilter === 'all' && moodFilter === 'all' && barFilter === 'all';
+
+  const ListHeader = useMemo(() => {
+    if (!showDotd) return null;
+    return (
+      <View style={styles.dotdWrapper}>
+        <Pressable
+          style={styles.dotdCard}
+          onPress={() => handlePress(drinkOfTheDay, 0)}
+        >
+          <Text style={styles.dotdHeader}>🍸 Drink of the Day</Text>
+          <View style={styles.dotdBody}>
+            <Text style={styles.dotdEmoji}>{getCocktailEmoji(drinkOfTheDay)}</Text>
+            <View style={styles.dotdInfo}>
+              <Text style={styles.dotdName}>{drinkOfTheDay.name}</Text>
+              <Text style={styles.dotdMeta}>
+                {spiritIcon} {drinkOfTheDay.spirit.charAt(0).toUpperCase() + drinkOfTheDay.spirit.slice(1)} · {dotdStyleLabel}
+              </Text>
+            </View>
+          </View>
+        </Pressable>
+        <Pressable style={styles.dotdDismiss} onPress={() => setDotdDismissed(true)}>
+          <Text style={styles.dotdDismissText}>✕</Text>
+        </Pressable>
       </View>
-    </Pressable>
-  ), [drinkOfTheDay, spiritIcon, dotdStyleLabel, handlePress]);
+    );
+  }, [showDotd, drinkOfTheDay, spiritIcon, dotdStyleLabel, handlePress, dotdDismissed]);
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
@@ -413,6 +425,26 @@ const styles = StyleSheet.create({
   },
 
   // Drink of the Day
+  dotdWrapper: {
+    position: 'relative',
+  },
+  dotdDismiss: {
+    position: 'absolute',
+    top: 8,
+    right: 24,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: 'rgba(0,0,0,0.4)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 1,
+  },
+  dotdDismissText: {
+    color: colors.textSecondary,
+    fontSize: 14,
+    fontWeight: '600' as const,
+  },
   dotdCard: {
     backgroundColor: colors.bgCard,
     borderRadius: radius.lg,
