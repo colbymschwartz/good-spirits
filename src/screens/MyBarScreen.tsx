@@ -5,6 +5,8 @@ import {
   SectionList,
   Pressable,
   StyleSheet,
+  Modal,
+  TextInput,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
@@ -21,8 +23,13 @@ export function MyBarScreen() {
   const navigation = useNavigation<any>();
   const myBar = useAppStore((s) => s.myBar);
   const customCocktails = useAppStore((s) => s.customCocktails);
+  const customIngredients = useAppStore((s) => s.customIngredients);
   const toggleBarItem = useAppStore((s) => s.toggleBarItem);
+  const addCustomIngredient = useAppStore((s) => s.addCustomIngredient);
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [addCategory, setAddCategory] = useState('');
+  const [newIngredientName, setNewIngredientName] = useState('');
 
   const toggleCollapse = useCallback((category: string) => {
     setCollapsed((prev) => ({ ...prev, [category]: !prev[category] }));
@@ -35,6 +42,23 @@ export function MyBarScreen() {
     },
     [toggleBarItem]
   );
+
+  const handleAddCustom = useCallback((category: string) => {
+    setAddCategory(category);
+    setNewIngredientName('');
+    setShowAddModal(true);
+  }, []);
+
+  const handleSaveCustom = useCallback(() => {
+    const name = newIngredientName.trim();
+    if (!name) return;
+    const id = 'custom-' + name.toLowerCase().replace(/[^a-z0-9]+/g, '-');
+    const ingredient: IngredientItem = { id, name, essential: false, brands: [] };
+    addCustomIngredient(addCategory, ingredient);
+    toggleBarItem(id);
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    setShowAddModal(false);
+  }, [newIngredientName, addCategory, addCustomIngredient, toggleBarItem]);
 
   const makeable = useMemo(() => {
     if (myBar.length === 0) return [];
@@ -51,20 +75,30 @@ export function MyBarScreen() {
     return results;
   }, [myBar, customCocktails]);
 
+  // Merge static + custom ingredients per category, sorted alphabetically
   const sections = useMemo(() => {
-    return INGREDIENT_INDEX.map((cat) => ({
-      title: cat.category,
-      icon: cat.icon,
-      data: collapsed[cat.category] ? [] : cat.items,
-    }));
-  }, [collapsed]);
+    return INGREDIENT_INDEX.map((cat) => {
+      const custom = customIngredients[cat.category] || [];
+      const allItems = [...cat.items, ...custom].sort((a, b) =>
+        a.name.localeCompare(b.name)
+      );
+      return {
+        title: cat.category,
+        icon: cat.icon,
+        data: collapsed[cat.category] ? [] : allItems,
+        totalCount: allItems.length,
+      };
+    });
+  }, [collapsed, customIngredients]);
 
   const renderSectionHeader = useCallback(
-    ({ section }: { section: { title: string; icon: string; data: IngredientItem[] } }) => {
+    ({ section }: { section: { title: string; icon: string; data: IngredientItem[]; totalCount: number } }) => {
       const isCollapsed = collapsed[section.title] ?? false;
       const catData = INGREDIENT_INDEX.find((c) => c.category === section.title);
-      const total = catData?.items.length ?? 0;
-      const owned = catData?.items.filter((i) => myBar.includes(i.id)).length ?? 0;
+      const custom = customIngredients[section.title] || [];
+      const allItems = [...(catData?.items || []), ...custom];
+      const total = allItems.length;
+      const owned = allItems.filter((i) => myBar.includes(i.id)).length;
 
       return (
         <Pressable
@@ -80,7 +114,7 @@ export function MyBarScreen() {
         </Pressable>
       );
     },
-    [collapsed, myBar, toggleCollapse]
+    [collapsed, myBar, toggleCollapse, customIngredients]
   );
 
   const renderItem = useCallback(
@@ -113,6 +147,21 @@ export function MyBarScreen() {
       );
     },
     [myBar, handleToggle]
+  );
+
+  const renderSectionFooter = useCallback(
+    ({ section }: { section: { title: string; data: IngredientItem[] } }) => {
+      if (collapsed[section.title]) return null;
+      return (
+        <Pressable
+          style={styles.addCustomBtn}
+          onPress={() => handleAddCustom(section.title)}
+        >
+          <Text style={styles.addCustomText}>+ Add Custom</Text>
+        </Pressable>
+      );
+    },
+    [collapsed, handleAddCustom]
   );
 
   const ListHeader = useMemo(
@@ -178,11 +227,52 @@ export function MyBarScreen() {
         keyExtractor={(item) => item.id}
         renderSectionHeader={renderSectionHeader}
         renderItem={renderItem}
+        renderSectionFooter={renderSectionFooter}
         ListHeaderComponent={ListHeader}
         stickySectionHeadersEnabled={false}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.list}
       />
+
+      {/* Add Custom Ingredient Modal */}
+      <Modal
+        visible={showAddModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowAddModal(false)}
+      >
+        <Pressable style={styles.modalOverlay} onPress={() => setShowAddModal(false)}>
+          <Pressable style={styles.modalContent} onPress={() => {}}>
+            <Text style={styles.modalTitle}>Add Custom Ingredient</Text>
+            <Text style={styles.modalSubtitle}>to {addCategory}</Text>
+            <TextInput
+              style={styles.modalInput}
+              value={newIngredientName}
+              onChangeText={setNewIngredientName}
+              placeholder="Ingredient name"
+              placeholderTextColor={colors.textDim}
+              autoFocus
+              returnKeyType="done"
+              onSubmitEditing={handleSaveCustom}
+            />
+            <View style={styles.modalButtons}>
+              <Pressable
+                style={styles.modalCancelBtn}
+                onPress={() => setShowAddModal(false)}
+              >
+                <Text style={styles.modalCancelText}>Cancel</Text>
+              </Pressable>
+              <Pressable
+                style={[styles.modalSaveBtn, !newIngredientName.trim() && styles.modalSaveBtnDisabled]}
+                onPress={handleSaveCustom}
+                disabled={!newIngredientName.trim()}
+              >
+                <Text style={styles.modalSaveText}>Add</Text>
+              </Pressable>
+            </View>
+          </Pressable>
+        </Pressable>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -363,5 +453,92 @@ const styles = StyleSheet.create({
     fontSize: typography.sizes.sm,
     color: colors.textDim,
     marginTop: 2,
+  },
+
+  // Add Custom button
+  addCustomBtn: {
+    marginHorizontal: spacing.lg,
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.xl,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+    alignItems: 'center',
+  },
+  addCustomText: {
+    fontSize: typography.sizes.body,
+    color: colors.accentGold,
+    fontWeight: typography.weights.semibold,
+  },
+
+  // Modal
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: spacing.xl,
+  },
+  modalContent: {
+    backgroundColor: colors.bgCard,
+    borderRadius: radius.md,
+    padding: spacing.xl,
+    width: '100%',
+    maxWidth: 340,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  modalTitle: {
+    fontSize: typography.sizes.xl,
+    fontFamily: typography.displayFont,
+    color: colors.accentGold,
+    marginBottom: spacing.xs,
+  },
+  modalSubtitle: {
+    fontSize: typography.sizes.body,
+    color: colors.textSecondary,
+    marginBottom: spacing.lg,
+  },
+  modalInput: {
+    backgroundColor: colors.bgDark,
+    borderWidth: 1,
+    borderColor: colors.borderLight,
+    borderRadius: radius.sm,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.md,
+    fontSize: typography.sizes.md,
+    color: colors.textPrimary,
+    marginBottom: spacing.lg,
+  },
+  modalButtons: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+  },
+  modalCancelBtn: {
+    flex: 1,
+    paddingVertical: spacing.md,
+    borderRadius: radius.sm,
+    borderWidth: 1,
+    borderColor: colors.borderLight,
+    alignItems: 'center',
+  },
+  modalCancelText: {
+    fontSize: typography.sizes.md,
+    color: colors.textSecondary,
+    fontWeight: typography.weights.semibold,
+  },
+  modalSaveBtn: {
+    flex: 1,
+    paddingVertical: spacing.md,
+    borderRadius: radius.sm,
+    backgroundColor: colors.accentGold,
+    alignItems: 'center',
+  },
+  modalSaveBtnDisabled: {
+    opacity: 0.4,
+  },
+  modalSaveText: {
+    fontSize: typography.sizes.md,
+    color: colors.bgDark,
+    fontWeight: typography.weights.bold,
   },
 });

@@ -27,6 +27,48 @@ import type { CocktailsStackParamList } from '../navigation/stacks/CocktailsStac
 
 type DetailRoute = RouteProp<CocktailsStackParamList, 'CocktailDetail'>;
 
+function StarRating({ cocktailId }: { cocktailId: string }) {
+  const ratings = useAppStore((s) => s.ratings);
+  const setRating = useAppStore((s) => s.setRating);
+  const currentRating = ratings[cocktailId] || 0;
+
+  const handleRate = (star: number) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    setRating(cocktailId, star === currentRating ? 0 : star);
+  };
+
+  return (
+    <View style={starStyles.container}>
+      {[1, 2, 3, 4, 5].map((star) => (
+        <Pressable key={star} onPress={() => handleRate(star)} hitSlop={4}>
+          <Text style={[starStyles.star, star <= currentRating ? starStyles.starFilled : starStyles.starEmpty]}>
+            ★
+          </Text>
+        </Pressable>
+      ))}
+    </View>
+  );
+}
+
+const starStyles = StyleSheet.create({
+  container: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: 8,
+    marginTop: spacing.sm,
+    marginBottom: spacing.xs,
+  },
+  star: {
+    fontSize: 30,
+  },
+  starFilled: {
+    color: colors.accentGold,
+  },
+  starEmpty: {
+    color: '#3a3a5a',
+  },
+});
+
 export function CocktailDetailScreen() {
   const navigation = useNavigation();
   const route = useRoute<DetailRoute>();
@@ -168,6 +210,10 @@ export function CocktailDetailScreen() {
         <View style={styles.hero}>
           <Text style={styles.heroIcon}>{spiritIcon}</Text>
           <Text style={styles.heroName}>{cocktail.name}</Text>
+
+          {/* Star Rating */}
+          <StarRating cocktailId={cocktail.id} />
+
           <View style={styles.heroMeta}>
             <Text style={styles.heroMetaText}>
               {cocktail.spirit.charAt(0).toUpperCase() + cocktail.spirit.slice(1)}

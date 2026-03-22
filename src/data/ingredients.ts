@@ -101,6 +101,26 @@ export const INGREDIENT_INDEX: IngredientCategory[] = [{
     name: "Cachaça",
     essential: false,
     brands: ["Leblon", "Sagatiba", "Novo Fogo"]
+  }, {
+    id: "anejo-rum",
+    name: "Añejo Rum",
+    essential: false,
+    brands: ["Diplomatico Reserva Exclusiva", "Ron Zacapa 23"]
+  }, {
+    id: "blackstrap-rum",
+    name: "Blackstrap Rum",
+    essential: false,
+    brands: ["Cruzan Blackstrap"]
+  }, {
+    id: "demerara-rum",
+    name: "Demerara Rum",
+    essential: false,
+    brands: ["El Dorado 12", "Lemon Hart 151"]
+  }, {
+    id: "navy-strength-rum",
+    name: "Navy Strength Rum",
+    essential: false,
+    brands: ["Smith & Cross", "Pusser's"]
   }]
 }, {
   category: "Tequila & Mezcal",
@@ -125,6 +145,11 @@ export const INGREDIENT_INDEX: IngredientCategory[] = [{
     name: "Mezcal",
     essential: false,
     brands: ["Del Maguey Vida", "Banhez", "Mezcal Negroni", "Sombra Mezcal"]
+  }, {
+    id: "reposado-mezcal",
+    name: "Reposado Mezcal",
+    essential: false,
+    brands: ["Del Maguey"]
   }]
 }, {
   category: "Vodka",
@@ -163,6 +188,16 @@ export const INGREDIENT_INDEX: IngredientCategory[] = [{
     name: "Applejack",
     essential: false,
     brands: ["Laird's Bonded Applejack"]
+  }, {
+    id: "apple-brandy",
+    name: "Apple Brandy",
+    essential: false,
+    brands: ["Laird's Applejack", "Calvados"]
+  }, {
+    id: "spanish-brandy",
+    name: "Spanish Brandy",
+    essential: false,
+    brands: ["Fundador", "Torres 10"]
   }]
 }, {
   category: "Vermouth & Aperitivi",
@@ -341,6 +376,66 @@ export const INGREDIENT_INDEX: IngredientCategory[] = [{
     name: "Passion Fruit Syrup",
     essential: false,
     brands: ["Monin Passion Fruit Syrup"]
+  }, {
+    id: "absinthe",
+    name: "Absinthe",
+    essential: false,
+    brands: ["Pernod Absinthe", "St. George Absinthe"]
+  }, {
+    id: "apricot-liqueur",
+    name: "Apricot Liqueur",
+    essential: false,
+    brands: ["Rothman & Winter Orchard Apricot"]
+  }, {
+    id: "b-and-b",
+    name: "B&B (Benedictine & Brandy)",
+    essential: false,
+    brands: ["B&B"]
+  }, {
+    id: "branca-menta",
+    name: "Branca Menta",
+    essential: false,
+    brands: ["Branca Menta"]
+  }, {
+    id: "cherry-heering",
+    name: "Cherry Heering",
+    essential: false,
+    brands: ["Cherry Heering"]
+  }, {
+    id: "cocchi-americano",
+    name: "Cocchi Americano",
+    essential: false,
+    brands: ["Cocchi Americano"]
+  }, {
+    id: "creme-de-cassis",
+    name: "Crème de Cassis",
+    essential: false,
+    brands: ["Lejay Crème de Cassis"]
+  }, {
+    id: "licor-43",
+    name: "Licor 43",
+    essential: false,
+    brands: ["Licor 43"]
+  }, {
+    id: "lillet-blanc",
+    name: "Lillet Blanc",
+    essential: false,
+    brands: ["Lillet Blanc"]
+  }, {
+    id: "luxardo-bianco",
+    name: "Luxardo Bitter Bianco",
+    essential: false,
+    brands: ["Luxardo Bitter Bianco"]
+  }, {
+    id: "pastis",
+    name: "Pastis",
+    essential: false,
+    brands: ["Ricard", "Pernod"]
+  }, {
+    id: "salers",
+    name: "Salers Gentiane",
+    essential: false,
+    brands: ["Salers"]
   }]
 }, {
   category: "Bitters",
@@ -448,6 +543,16 @@ export const INGREDIENT_INDEX: IngredientCategory[] = [{
     name: "Vanilla Syrup",
     essential: false,
     brands: []
+  }, {
+    id: "elderflower-syrup",
+    name: "Elderflower Syrup",
+    essential: false,
+    brands: []
+  }, {
+    id: "lavender-syrup",
+    name: "Lavender Syrup",
+    essential: false,
+    brands: []
   }]
 }, {
   category: "Mixers",
@@ -497,6 +602,16 @@ export const INGREDIENT_INDEX: IngredientCategory[] = [{
     name: "Tomato Juice",
     essential: false,
     brands: []
+  }, {
+    id: "grapefruit-soda",
+    name: "Grapefruit Soda",
+    essential: false,
+    brands: ["Jarritos", "Squirt"]
+  }, {
+    id: "passion-fruit-puree",
+    name: "Passion Fruit Purée",
+    essential: false,
+    brands: []
   }]
 }, {
   category: "Wine & Bubbles",
@@ -521,6 +636,31 @@ export const INGREDIENT_INDEX: IngredientCategory[] = [{
     name: "Red Wine",
     essential: false,
     brands: ["Cabernet Sauvignon", "Pinot Noir"]
+  }, {
+    id: "amontillado-sherry",
+    name: "Amontillado Sherry",
+    essential: false,
+    brands: ["Lustau Amontillado"]
+  }, {
+    id: "cream-sherry",
+    name: "Cream Sherry",
+    essential: false,
+    brands: ["Harvey's Bristol Cream"]
+  }, {
+    id: "fino-sherry",
+    name: "Fino Sherry",
+    essential: false,
+    brands: ["Tio Pepe"]
+  }, {
+    id: "manzanilla-sherry",
+    name: "Manzanilla Sherry",
+    essential: false,
+    brands: ["La Gitana"]
+  }, {
+    id: "rose-prosecco",
+    name: "Rosé Prosecco",
+    essential: false,
+    brands: []
   }]
 }, {
   category: "Dairy & Egg",
@@ -649,5 +789,60 @@ export const INGREDIENT_INDEX: IngredientCategory[] = [{
     name: "Cocktail Cherries (Luxardo)",
     essential: false,
     brands: ["Luxardo Maraschino Cherries"]
+  }, {
+    id: "activated-charcoal",
+    name: "Activated Charcoal",
+    essential: false,
+    brands: []
+  }, {
+    id: "ancho-chili-salt",
+    name: "Ancho Chili Salt",
+    essential: false,
+    brands: []
+  }, {
+    id: "fresh-apricot",
+    name: "Fresh Apricot",
+    essential: false,
+    brands: []
+  }, {
+    id: "fresh-raspberries",
+    name: "Fresh Raspberries",
+    essential: false,
+    brands: []
+  }, {
+    id: "green-grapes",
+    name: "Green Grapes",
+    essential: false,
+    brands: []
+  }, {
+    id: "hot-water",
+    name: "Hot Water",
+    essential: false,
+    brands: []
+  }, {
+    id: "jalapeno",
+    name: "Jalapeño",
+    essential: false,
+    brands: []
+  }, {
+    id: "lemon-peel",
+    name: "Lemon Peel",
+    essential: false,
+    brands: []
+  }, {
+    id: "mineral-water",
+    name: "Mineral Water",
+    essential: false,
+    brands: ["San Pellegrino"]
+  }, {
+    id: "red-grapes",
+    name: "Red Grapes",
+    essential: false,
+    brands: []
+  }, {
+    id: "salt",
+    name: "Salt",
+    essential: false,
+    brands: []
   }]
 }];

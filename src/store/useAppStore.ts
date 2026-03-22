@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { storage } from './storage';
-import { Cocktail, Variation } from '../types';
+import { Cocktail, Variation, IngredientItem } from '../types';
 
 interface AppState {
   favorites: string[];
@@ -10,6 +10,7 @@ interface AppState {
   barBrands: Record<string, string>;
   customCocktails: Cocktail[];
   customVariations: Record<string, Variation[]>;
+  customIngredients: Record<string, IngredientItem[]>;
   notes: Record<string, string>;
   photos: Record<string, string>;
   hydrated: boolean;
@@ -20,6 +21,7 @@ interface AppState {
   setRating: (id: string, rating: number) => void;
   toggleBarItem: (ingredientId: string) => void;
   setBarBrands: (brands: Record<string, string>) => void;
+  addCustomIngredient: (category: string, ingredient: IngredientItem) => void;
   saveNote: (cocktailId: string, varName: string, text: string) => void;
   getNote: (cocktailId: string, varName: string) => string;
   savePhoto: (cocktailId: string, varName: string, uri: string) => void;
@@ -39,6 +41,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   barBrands: {},
   customCocktails: [],
   customVariations: {},
+  customIngredients: {},
   notes: {},
   photos: {},
   hydrated: false,
@@ -84,6 +87,18 @@ export const useAppStore = create<AppState>((set, get) => ({
   setBarBrands: (brands) => {
     set({ barBrands: brands });
     storage.set('barBrands', brands);
+  },
+
+  addCustomIngredient: (category, ingredient) => {
+    set((state) => {
+      const existing = state.customIngredients[category] || [];
+      const customIngredients = {
+        ...state.customIngredients,
+        [category]: [...existing, ingredient],
+      };
+      storage.set('customIngredients', customIngredients);
+      return { customIngredients };
+    });
   },
 
   saveNote: (cocktailId, varName, text) => {
@@ -159,6 +174,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       barBrands,
       customCocktails,
       customVariations,
+      customIngredients,
       notes,
       photos,
     ] = await Promise.all([
@@ -169,6 +185,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       storage.get<Record<string, string>>('barBrands', {}),
       storage.get<Cocktail[]>('customCocktails', []),
       storage.get<Record<string, Variation[]>>('customVariations', {}),
+      storage.get<Record<string, IngredientItem[]>>('customIngredients', {}),
       storage.get<Record<string, string>>('notes', {}),
       storage.get<Record<string, string>>('photos', {}),
     ]);
@@ -180,6 +197,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       barBrands,
       customCocktails,
       customVariations,
+      customIngredients,
       notes,
       photos,
       hydrated: true,

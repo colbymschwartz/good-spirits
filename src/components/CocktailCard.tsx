@@ -10,9 +10,10 @@ interface Props {
   cocktail: Cocktail;
   variationIndex?: number;
   onPress: () => void;
+  missingIngredients?: string[];
 }
 
-function CocktailCardInner({ cocktail, variationIndex = 0, onPress }: Props) {
+function CocktailCardInner({ cocktail, variationIndex = 0, onPress, missingIngredients }: Props) {
   const emoji = getCocktailEmoji(cocktail);
   const styleLabel = STYLE_LABELS[cocktail.style] || cocktail.style;
   const varCount = cocktail.variations.length;
@@ -93,6 +94,11 @@ function CocktailCardInner({ cocktail, variationIndex = 0, onPress }: Props) {
               </View>
             ))}
           </View>
+          {missingIngredients && missingIngredients.length > 0 && (
+            <Text style={styles.missingText} numberOfLines={2}>
+              Missing: {missingIngredients.join(', ')}
+            </Text>
+          )}
         </View>
         {varCount > 1 && (
           <View style={styles.varBadge}>
@@ -166,6 +172,12 @@ const styles = StyleSheet.create({
     fontSize: typography.sizes.sm,
     fontWeight: typography.weights.medium,
     color: colors.textSecondary,
+  },
+  missingText: {
+    fontSize: typography.sizes.sm,
+    color: colors.textDim,
+    fontStyle: 'italic',
+    marginTop: 4,
   },
   varBadge: {
     backgroundColor: colors.goldOverlay10,
