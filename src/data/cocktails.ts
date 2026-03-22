@@ -1861,6 +1861,28 @@ export const COCKTAIL_DATABASE: Cocktail[] = [
     steps: "Fill a shaker with ice. Add 2 oz blanco tequila, 1 oz fresh lime juice, 1/2 oz triple-sec, and 1/2 oz simple syrup. Shake vigorously for 10 seconds. Strain into a coupe. Float 1/4 oz Grand Marnier on top by pouring slowly over the back of a bar spoon.",
     ratioNotes: "Grand Marnier (cognac-based orange liqueur) floats on top, providing a luxurious layer of vanilla, oak, and refined citrus. This elevates the classic through visual presentation and a softer, more complex finish. The Grand Marnier should not be stirred in; the contrast between the cold drink and the floating layer is part of the experience.",
     brandRecs: "Use top-shelf tequila (Patron Platinum, Casa Noble Reposado) with Grand Marnier for a truly premium expression."
+  }, {
+    name: "Siesta",
+    canon: false,
+    spec: ["2 oz blanco tequila", "1/2 oz Campari", "1/2 oz fresh grapefruit juice", "1/2 oz fresh lime juice", "1/2 oz simple syrup"],
+    ingredients: ["blanco-tequila", "campari", "grapefruit-juice", "lime-juice", "simple-syrup"],
+    glass: "coupe",
+    garnish: "Grapefruit twist",
+    method: "Shake",
+    steps: "Fill a shaker with ice. Add 2 oz blanco tequila, 1/2 oz Campari, 1/2 oz fresh grapefruit juice, 1/2 oz fresh lime juice, and 1/2 oz simple syrup. Shake vigorously for 12 seconds. Fine-strain into a chilled coupe. Garnish with a grapefruit twist.",
+    ratioNotes: "Created by Katie Stipe at Flatiron Lounge in NYC. The Siesta is essentially a Margarita that swaps triple-sec for Campari and adds grapefruit — the result is bitter, complex, and utterly compelling. The Campari provides backbone and color while grapefruit's bitterness complements rather than competes. This is a modern classic that deserves wider recognition. The balance between sweet (syrup), sour (lime + grapefruit), and bitter (Campari) is masterful.",
+    brandRecs: "Espolòn Blanco (agave-forward, stands up to Campari's bitterness), Cimarron Blanco (excellent value), or Fortaleza Still Strength for a bolder take."
+  }, {
+    name: "Margari-Ty",
+    canon: false,
+    spec: ["2 oz blanco tequila", "2 oz green Chartreuse", "1 oz pineapple juice", "1 oz fresh lime juice", "1 pinch salt"],
+    ingredients: ["blanco-tequila", "green-chartreuse", "pineapple-juice", "lime-juice"],
+    glass: "coupe",
+    garnish: "Lime wheel",
+    method: "Shake",
+    steps: "Fill a shaker with ice. Add 2 oz blanco tequila, 2 oz green Chartreuse, 1 oz pineapple juice, 1 oz fresh lime juice, and a pinch of salt. Shake vigorously for 12 seconds. Fine-strain into a chilled coupe. Garnish with a lime wheel.",
+    ratioNotes: "A modern original that bridges the gap between a classic Margarita and the herbal complexity of Chartreuse. The equal parts tequila and Chartreuse create a bold, herbaceous backbone, while pineapple juice adds tropical sweetness and body that rounds out Chartreuse's intensity. The pinch of salt enhances all flavors and ties the agave and herbal notes together. This is not a subtle drink — it's confident, complex, and unforgettable.",
+    brandRecs: "Espolòn Blanco or Cimarron (clean agave that lets Chartreuse shine). Green Chartreuse is essential — yellow Chartreuse would make this too mild. Fresh pineapple juice preferred over canned for brighter flavor."
   }]
 }, {
   id: "paloma",
