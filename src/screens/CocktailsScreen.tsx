@@ -261,13 +261,17 @@ export function CocktailsScreen() {
 
   const renderItem = useCallback(
     ({ item }: { item: { cocktail: Cocktail; varIdx: number } }) => {
-      const missing = barFilter === 'almost' ? barMatchData.get(item.cocktail.id)?.missing : undefined;
+      const matchData = barFilter !== 'all' ? barMatchData.get(item.cocktail.id) : undefined;
+      const missing = matchData?.missing;
+      const matchRatio = matchData?.ratio;
       return (
         <CocktailCard
           cocktail={item.cocktail}
           variationIndex={item.varIdx}
           onPress={() => handlePress(item.cocktail, item.varIdx)}
           missingIngredients={missing}
+          matchRatio={matchRatio}
+          showBarMatch={barFilter !== 'all'}
         />
       );
     },

@@ -11,9 +11,11 @@ interface Props {
   variationIndex?: number;
   onPress: () => void;
   missingIngredients?: string[];
+  matchRatio?: number;
+  showBarMatch?: boolean;
 }
 
-function CocktailCardInner({ cocktail, variationIndex = 0, onPress, missingIngredients }: Props) {
+function CocktailCardInner({ cocktail, variationIndex = 0, onPress, missingIngredients, matchRatio, showBarMatch }: Props) {
   const emoji = getCocktailEmoji(cocktail);
   const styleLabel = STYLE_LABELS[cocktail.style] || cocktail.style;
   const varCount = cocktail.variations.length;
@@ -100,11 +102,20 @@ function CocktailCardInner({ cocktail, variationIndex = 0, onPress, missingIngre
             </Text>
           )}
         </View>
-        {varCount > 1 && (
-          <View style={styles.varBadge}>
-            <Text style={styles.varBadgeText}>{varCount} vars</Text>
-          </View>
-        )}
+        <View style={styles.rightCol}>
+          {showBarMatch && matchRatio !== undefined && (
+            <View style={[styles.matchBadge, matchRatio === 1 ? styles.matchBadgeFull : styles.matchBadgePartial]}>
+              <Text style={[styles.matchBadgeText, matchRatio === 1 ? styles.matchBadgeTextFull : styles.matchBadgeTextPartial]}>
+                {matchRatio === 1 ? '✓ Ready' : `${Math.round(matchRatio * 100)}%`}
+              </Text>
+            </View>
+          )}
+          {varCount > 1 && (
+            <View style={styles.varBadge}>
+              <Text style={styles.varBadgeText}>{varCount} vars</Text>
+            </View>
+          )}
+        </View>
       </Pressable>
     </Animated.View>
   );
@@ -178,6 +189,31 @@ const styles = StyleSheet.create({
     color: colors.textDim,
     fontStyle: 'italic',
     marginTop: 4,
+  },
+  rightCol: {
+    alignItems: 'flex-end',
+    gap: 6,
+  },
+  matchBadge: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  matchBadgeFull: {
+    backgroundColor: 'rgba(107,189,123,0.2)',
+  },
+  matchBadgePartial: {
+    backgroundColor: 'rgba(232,168,124,0.2)',
+  },
+  matchBadgeText: {
+    fontSize: typography.sizes.sm,
+    fontWeight: typography.weights.bold,
+  },
+  matchBadgeTextFull: {
+    color: colors.success,
+  },
+  matchBadgeTextPartial: {
+    color: colors.warning,
   },
   varBadge: {
     backgroundColor: colors.goldOverlay10,
