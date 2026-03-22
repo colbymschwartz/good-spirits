@@ -261,7 +261,7 @@ export function CocktailsScreen() {
 
   const renderItem = useCallback(
     ({ item }: { item: { cocktail: Cocktail; varIdx: number } }) => {
-      const matchData = barFilter !== 'all' ? barMatchData.get(item.cocktail.id) : undefined;
+      const matchData = myBar.length > 0 ? barMatchData.get(item.cocktail.id) : undefined;
       const missing = matchData?.missing;
       const matchRatio = matchData?.ratio;
       return (
@@ -271,7 +271,7 @@ export function CocktailsScreen() {
           onPress={() => handlePress(item.cocktail, item.varIdx)}
           missingIngredients={missing}
           matchRatio={matchRatio}
-          showBarMatch={barFilter !== 'all'}
+          showBarMatch={myBar.length > 0}
         />
       );
     },
