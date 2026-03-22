@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import {
   View,
   Text,
@@ -7,7 +7,6 @@ import {
   TextInput,
   Image,
   StyleSheet,
-  Share,
   Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -21,6 +20,7 @@ import { useAppStore } from '../store/useAppStore';
 import { ArtDecoDivider } from '../components/ArtDecoDivider';
 import { BatchCalculator } from '../components/BatchCalculator';
 import { RemixModal } from '../components/RemixModal';
+import { ShareCard } from '../components/ShareCard';
 import { colors, typography, spacing, radius } from '../theme';
 import type { Cocktail, Variation } from '../types';
 import type { CocktailsStackParamList } from '../navigation/stacks/CocktailsStack';
@@ -59,6 +59,7 @@ export function CocktailDetailScreen() {
   const [showBatch, setShowBatch] = useState(false);
   const [showRemix, setShowRemix] = useState(false);
   const [noteText, setNoteText] = useState('');
+  const shareCapture = useRef<(() => Promise<void>) | null>(null);
 
   const variation = cocktail?.variations[activeVariation] || cocktail?.variations[0];
   const noteKey = cocktail && variation ? cocktail.id + '::' + variation.name : '';
@@ -96,30 +97,14 @@ export function CocktailDetailScreen() {
     toggleFavorite(cocktail.id);
   };
 
+  const handleShareReady = useCallback((capture: () => Promise<void>) => {
+    shareCapture.current = capture;
+  }, []);
+
   const handleShare = async () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    const specText = variation.spec.map((s) => `  ${s}`).join('\n');
-    const message = [
-      `${cocktail.name} - ${variation.name}`,
-      '',
-      `Spirit: ${cocktail.spirit}`,
-      `Style: ${styleLabel}`,
-      '',
-      'Ingredients:',
-      specText,
-      '',
-      `Glass: ${variation.glass}`,
-      `Method: ${variation.method}`,
-      variation.garnish ? `Garnish: ${variation.garnish}` : '',
-      variation.steps ? `\nSteps: ${variation.steps}` : '',
-      '',
-      'Shared from Good Spirits',
-    ].filter(Boolean).join('\n');
-
-    try {
-      await Share.share({ message });
-    } catch (_) {
-      // User cancelled
+    if (shareCapture.current) {
+      await shareCapture.current();
     }
   };
 
@@ -389,6 +374,12 @@ export function CocktailDetailScreen() {
         onClose={() => setShowRemix(false)}
         cocktail={cocktail}
         variation={variation}
+      />
+
+      <ShareCard
+        cocktail={cocktail}
+        variation={variation}
+        onReady={handleShareReady}
       />
     </SafeAreaView>
   );
