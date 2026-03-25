@@ -14,6 +14,9 @@
    - Add an explicit "Save" button
    - Small "Auto-saved" text below the text field
 
+## 🆕 New Features
+4. **Voice stock My Bar** — text input + mic button on My Bar screen. User says/types what they have, fuzzy-match against ingredient database, confirm, auto-toggle. Uses iOS built-in keyboard dictation + custom matching logic.
+
 ## 📝 Tester Feedback
 *(Add items here as feedback comes in)*
 
