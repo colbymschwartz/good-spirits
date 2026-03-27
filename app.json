@@ -2,7 +2,7 @@
   "expo": {
     "name": "Good Spirits",
     "slug": "good-spirits",
-    "version": "1.5.0",
+    "version": "1.6.0",
     "description": "The Home Mixologist\u2019s Bible \u2014 50+ classic cocktails with variations, techniques, and history in an Art Deco-inspired companion app.",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -18,7 +18,7 @@
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
       },
-      "buildNumber": "10"
+      "buildNumber": "13"
     },
     "android": {
       "adaptiveIcon": {
