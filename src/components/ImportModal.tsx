@@ -54,26 +54,51 @@ function parseRecipeText(rawText: string): ParsedRecipe | null {
   const ingredients: string[] = [];
   const steps: string[] = [];
   let inSteps = false;
+  let inIngredients = false;
+
+  // Measurement keywords that indicate an ingredient line
+  const measurementPattern = /\b(oz|ml|cl|dash(es)?|barspoon|tsp|tbsp|cup|splash|rinse|drop|part|jigger|shot)\b/i;
 
   for (let i = 1; i < lines.length; i++) {
     const line = lines[i];
-    if (/^(step|direction|instruction|method|preparation)/i.test(line)) {
+
+    // Section headers
+    if (/^(step|direction|instruction|method|preparation|how to)/i.test(line.replace(/^#+\s*/, ''))) {
       inSteps = true;
+      inIngredients = false;
       continue;
     }
-    if (/^(ingredient|what you|you.ll need)/i.test(line)) {
+    if (/^(ingredient|what you|you.ll need|you will need|recipe)/i.test(line.replace(/^#+\s*/, ''))) {
       inSteps = false;
+      inIngredients = true;
       continue;
     }
-    if (inSteps || /^\d+[\.\)]\s/.test(line)) {
-      steps.push(line.replace(/^\d+[\.\)]\s*/, ''));
+
+    const cleaned = line.replace(/^[-\u2022\*]\s*/, '');
+
+    // Numbered steps like "1. Do something" or "1) Do something"
+    if (/^\d+[\.\)]\s/.test(line) && !measurementPattern.test(line)) {
+      steps.push(cleaned.replace(/^\d+[\.\)]\s*/, ''));
       inSteps = true;
-    } else if (/^\d|^[\u00BC-\u00BE\u215B-\u215E]|^[-\u2022\*]\s*\d/.test(line)) {
-      ingredients.push(line.replace(/^[-\u2022\*]\s*/, ''));
-    } else if (line.includes('oz') || line.includes('tbsp') || line.includes('tsp') || line.includes('cup') || line.includes('dash')) {
-      ingredients.push(line.replace(/^[-\u2022\*]\s*/, ''));
+      inIngredients = false;
+      continue;
+    }
+
+    if (inSteps) {
+      steps.push(cleaned);
+      continue;
+    }
+
+    // Detect ingredients: starts with number/fraction, or contains measurement words, or is a bullet item in ingredient section
+    const startsWithAmount = /^\d|^[\u00BC-\u00BE\u215B-\u215E]/.test(cleaned);
+    const hasMeasurement = measurementPattern.test(cleaned);
+    const isBulletItem = /^[-\u2022\*]\s*/.test(line);
+
+    if (startsWithAmount || hasMeasurement || inIngredients || isBulletItem) {
+      ingredients.push(cleaned);
+      inIngredients = true;
     } else if (line.length > 20) {
-      steps.push(line);
+      steps.push(cleaned);
     }
   }
 
@@ -95,18 +120,25 @@ export function ImportModal({ visible, onClose }: Props) {
   const [rawText, setRawText] = useState('');
   const [parsed, setParsed] = useState<ParsedRecipe | null>(null);
   const [customSpirit, setCustomSpirit] = useState('');
+  const [parseError, setParseError] = useState('');
 
   const resetForm = () => {
     setRawText('');
     setParsed(null);
     setCustomSpirit('');
+    setParseError('');
   };
 
   const handleParse = () => {
+    setParseError('');
     const result = parseRecipeText(rawText);
-    if (result) {
+    if (result && result.name && result.spec.length > 0) {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
       setParsed(result);
+    } else if (result && result.name && result.spec.length === 0) {
+      setParseError('No ingredients found. Try formatting each ingredient on its own line with amounts (e.g. "2 oz bourbon").');
+    } else {
+      setParseError('Could not parse recipe. Make sure the first line is the cocktail name.');
     }
   };
 
@@ -192,6 +224,9 @@ export function ImportModal({ visible, onClose }: Props) {
                   multiline
                   textAlignVertical="top"
                 />
+                {parseError ? (
+                  <Text style={styles.errorText}>{parseError}</Text>
+                ) : null}
                 <Pressable
                   style={[styles.saveBtn, !rawText.trim() && styles.saveBtnDisabled]}
                   onPress={handleParse}
@@ -364,6 +399,12 @@ const styles = StyleSheet.create({
   importArea: {
     minHeight: 200,
     paddingTop: 10,
+  },
+  errorText: {
+    fontSize: typography.sizes.body,
+    color: colors.error,
+    marginTop: spacing.sm,
+    lineHeight: 20,
   },
 
   pillRow: { gap: spacing.sm },

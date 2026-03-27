@@ -13,6 +13,7 @@ interface AppState {
   customIngredients: Record<string, IngredientItem[]>;
   notes: Record<string, string>;
   photos: Record<string, string>;
+  hasSeenOnboarding: boolean;
   hydrated: boolean;
 
   // Actions
@@ -30,6 +31,7 @@ interface AppState {
   deleteCustomVariation: (cocktailId: string, varName: string) => void;
   saveCustomCocktail: (cocktail: Cocktail) => void;
   deleteCustomCocktail: (id: string) => void;
+  setHasSeenOnboarding: () => void;
   hydrate: () => Promise<void>;
 }
 
@@ -44,6 +46,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   customIngredients: {},
   notes: {},
   photos: {},
+  hasSeenOnboarding: false,
   hydrated: false,
 
   toggleFavorite: (id) => {
@@ -157,6 +160,11 @@ export const useAppStore = create<AppState>((set, get) => ({
     });
   },
 
+  setHasSeenOnboarding: () => {
+    set({ hasSeenOnboarding: true });
+    storage.set('hasSeenOnboarding', true);
+  },
+
   deleteCustomCocktail: (id) => {
     set((state) => {
       const customCocktails = state.customCocktails.filter((c) => c.id !== id);
@@ -177,6 +185,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       customIngredients,
       notes,
       photos,
+      hasSeenOnboarding,
     ] = await Promise.all([
       storage.get<string[]>('favorites', []),
       storage.get<string[]>('madeIt', []),
@@ -188,6 +197,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       storage.get<Record<string, IngredientItem[]>>('customIngredients', {}),
       storage.get<Record<string, string>>('notes', {}),
       storage.get<Record<string, string>>('photos', {}),
+      storage.get<boolean>('hasSeenOnboarding', false),
     ]);
     set({
       favorites,
@@ -200,6 +210,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       customIngredients,
       notes,
       photos,
+      hasSeenOnboarding,
       hydrated: true,
     });
   },

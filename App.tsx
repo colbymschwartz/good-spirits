@@ -12,12 +12,15 @@ import {
 import { TabNavigator } from './src/navigation/TabNavigator';
 import { useAppStore } from './src/store/useAppStore';
 import { colors } from './src/theme';
+import { OnboardingTour } from './src/components/OnboardingTour';
 
 SplashScreen.preventAutoHideAsync();
 
 export default function App() {
   const hydrate = useAppStore((s) => s.hydrate);
   const hydrated = useAppStore((s) => s.hydrated);
+  const hasSeenOnboarding = useAppStore((s) => s.hasSeenOnboarding);
+  const setHasSeenOnboarding = useAppStore((s) => s.setHasSeenOnboarding);
   const [fontsLoaded] = useFonts({
     JosefinSans_400Regular,
     JosefinSans_600SemiBold,
@@ -62,6 +65,9 @@ export default function App() {
         <TabNavigator />
         <StatusBar style="light" />
       </NavigationContainer>
+      {!hasSeenOnboarding && hydrated && (
+        <OnboardingTour visible={!hasSeenOnboarding} onComplete={setHasSeenOnboarding} />
+      )}
     </SafeAreaProvider>
   );
 }

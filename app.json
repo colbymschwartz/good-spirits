@@ -2,7 +2,7 @@
   "expo": {
     "name": "Good Spirits",
     "slug": "good-spirits",
-    "version": "1.4.0",
+    "version": "1.5.0",
     "description": "The Home Mixologist\u2019s Bible \u2014 50+ classic cocktails with variations, techniques, and history in an Art Deco-inspired companion app.",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -28,7 +28,14 @@
       "package": "com.goodspirits.app"
     },
     "plugins": [
-      "expo-font"
+      "expo-font",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Good Spirits needs access to your photos to add cocktail photos.",
+          "cameraPermission": "Good Spirits needs access to your camera to photograph cocktails."
+        }
+      ]
     ],
     "extra": {
       "eas": {

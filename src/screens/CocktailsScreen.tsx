@@ -87,6 +87,7 @@ export function CocktailsScreen() {
   const [showFabMenu, setShowFabMenu] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [dotdDismissed, setDotdDismissed] = useState(false);
+  const [barHintDismissed, setBarHintDismissed] = useState(false);
   const customCocktails = useAppStore((s) => s.customCocktails);
   const customVariations = useAppStore((s) => s.customVariations);
   const myBar = useAppStore((s) => s.myBar);
@@ -291,9 +292,10 @@ export function CocktailsScreen() {
   // Hide DOTD when searching, filtering, or dismissed
   const showDotd = !dotdDismissed && !search.trim() && spiritFilter === 'all' && styleFilter === 'all' && moodFilter === 'all' && barFilter === 'all';
 
+  const showBarHint = myBar.length === 0 && !barHintDismissed;
+
   const ListHeader = useMemo(() => {
-    if (!showDotd) return null;
-    return (
+    const dotdComponent = showDotd ? (
       <View style={styles.dotdWrapper}>
         <Pressable
           style={styles.dotdCard}
@@ -314,8 +316,32 @@ export function CocktailsScreen() {
           <Text style={styles.dotdDismissText}>✕</Text>
         </Pressable>
       </View>
+    ) : null;
+
+    return (
+      <View>
+        {showBarHint && (
+          <View style={styles.barHintWrapper}>
+            <View style={styles.barHintCard}>
+              <Text style={styles.barHintText}>
+                Stock your bar to see what you can make!
+              </Text>
+              <Pressable
+                onPress={() => navigation.getParent()?.navigate('MyBarTab')}
+                style={styles.barHintLink}
+              >
+                <Text style={styles.barHintLinkText}>Go to My Bar →</Text>
+              </Pressable>
+            </View>
+            <Pressable style={styles.barHintDismiss} onPress={() => setBarHintDismissed(true)}>
+              <Text style={styles.dotdDismissText}>✕</Text>
+            </Pressable>
+          </View>
+        )}
+        {dotdComponent}
+      </View>
     );
-  }, [showDotd, drinkOfTheDay, spiritIcon, dotdStyleLabel, handlePress, dotdDismissed]);
+  }, [showDotd, showBarHint, drinkOfTheDay, spiritIcon, dotdStyleLabel, handlePress, dotdDismissed, barHintDismissed, navigation]);
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
@@ -492,6 +518,45 @@ const styles = StyleSheet.create({
     fontSize: typography.sizes.body,
     color: colors.textSecondary,
     marginTop: 2,
+  },
+
+  // Bar hint
+  barHintWrapper: {
+    position: 'relative',
+  },
+  barHintCard: {
+    backgroundColor: colors.bgCard,
+    borderRadius: radius.lg,
+    marginHorizontal: spacing.lg,
+    marginBottom: spacing.lg,
+    padding: spacing.lg,
+    borderWidth: 1,
+    borderColor: colors.accentGold,
+  },
+  barHintText: {
+    fontSize: typography.sizes.md,
+    color: colors.textPrimary,
+    marginBottom: spacing.sm,
+  },
+  barHintLink: {
+    paddingVertical: spacing.xs,
+  },
+  barHintLinkText: {
+    fontSize: typography.sizes.body,
+    color: colors.accentGold,
+    fontWeight: typography.weights.semibold,
+  },
+  barHintDismiss: {
+    position: 'absolute',
+    top: 8,
+    right: 24,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: 'rgba(0,0,0,0.4)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 1,
   },
 
   empty: {

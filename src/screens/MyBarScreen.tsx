@@ -30,6 +30,7 @@ export function MyBarScreen() {
   const [showAddModal, setShowAddModal] = useState(false);
   const [addCategory, setAddCategory] = useState('');
   const [newIngredientName, setNewIngredientName] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
 
   const toggleCollapse = useCallback((category: string) => {
     setCollapsed((prev) => ({ ...prev, [category]: !prev[category] }));
@@ -90,6 +91,51 @@ export function MyBarScreen() {
       };
     });
   }, [collapsed, customIngredients]);
+
+  const searchResults = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase();
+    if (!q) return [];
+    const results: { id: string; name: string; category: string }[] = [];
+    for (const cat of INGREDIENT_INDEX) {
+      for (const item of cat.items) {
+        if (
+          item.name.toLowerCase().startsWith(q) ||
+          item.name.toLowerCase().includes(q) ||
+          item.id.includes(q)
+        ) {
+          results.push({ id: item.id, name: item.name, category: cat.category });
+        }
+      }
+    }
+    // Also search custom ingredients
+    for (const [category, items] of Object.entries(customIngredients)) {
+      for (const item of items) {
+        if (
+          item.name.toLowerCase().startsWith(q) ||
+          item.name.toLowerCase().includes(q)
+        ) {
+          results.push({ id: item.id, name: item.name, category });
+        }
+      }
+    }
+    // Sort: startsWith matches first, then includes
+    results.sort((a, b) => {
+      const aStarts = a.name.toLowerCase().startsWith(q) ? 0 : 1;
+      const bStarts = b.name.toLowerCase().startsWith(q) ? 0 : 1;
+      return aStarts - bStarts || a.name.localeCompare(b.name);
+    });
+    return results.slice(0, 15);
+  }, [searchQuery, customIngredients]);
+
+  const handleAddFromSearch = useCallback(
+    (id: string) => {
+      if (!myBar.includes(id)) {
+        toggleBarItem(id);
+      }
+      setSearchQuery('');
+    },
+    [myBar, toggleBarItem]
+  );
 
   const renderSectionHeader = useCallback(
     ({ section }: { section: { title: string; icon: string; data: IngredientItem[]; totalCount: number } }) => {
@@ -176,6 +222,40 @@ export function MyBarScreen() {
 
         <ArtDecoDivider />
 
+        {/* Search / Dictation Input */}
+        <View style={styles.searchSection}>
+          <TextInput
+            style={styles.searchInput}
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+            placeholder="Type or dictate what you have..."
+            placeholderTextColor={colors.textDim}
+            returnKeyType="search"
+            clearButtonMode="while-editing"
+          />
+          {searchResults.length > 0 && (
+            <View style={styles.searchResults}>
+              {searchResults.map((item) => (
+                <Pressable
+                  key={item.id}
+                  style={styles.searchResultRow}
+                  onPress={() => handleAddFromSearch(item.id)}
+                >
+                  <View style={styles.searchResultInfo}>
+                    <Text style={styles.searchResultName}>{item.name}</Text>
+                    <Text style={styles.searchResultCategory}>{item.category}</Text>
+                  </View>
+                  {myBar.includes(item.id) ? (
+                    <Text style={styles.searchResultAdded}>✓</Text>
+                  ) : (
+                    <Text style={styles.searchResultAdd}>+</Text>
+                  )}
+                </Pressable>
+              ))}
+            </View>
+          )}
+        </View>
+
         {/* What Can I Make */}
         <View style={styles.makeableSection}>
           <Text style={styles.makeableTitle}>
@@ -217,7 +297,7 @@ export function MyBarScreen() {
         </View>
       </View>
     ),
-    [myBar.length, makeable, navigation]
+    [myBar.length, makeable, navigation, searchQuery, searchResults, handleAddFromSearch]
   );
 
   return (
@@ -362,6 +442,66 @@ const styles = StyleSheet.create({
     fontSize: typography.sizes.lg,
     fontWeight: typography.weights.bold,
     color: colors.accentGoldLight,
+  },
+
+  // Search
+  searchSection: {
+    paddingHorizontal: spacing.xl,
+    paddingTop: spacing.md,
+    paddingBottom: spacing.sm,
+    zIndex: 10,
+  },
+  searchInput: {
+    backgroundColor: colors.bgCard,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radius.sm,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.md,
+    fontSize: typography.sizes.md,
+    color: colors.textPrimary,
+  },
+  searchResults: {
+    backgroundColor: colors.bgCard,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderTopWidth: 0,
+    borderBottomLeftRadius: radius.sm,
+    borderBottomRightRadius: radius.sm,
+    maxHeight: 300,
+  },
+  searchResultRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.md,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  },
+  searchResultInfo: {
+    flex: 1,
+  },
+  searchResultName: {
+    fontSize: typography.sizes.md,
+    color: colors.textPrimary,
+    fontWeight: typography.weights.medium,
+  },
+  searchResultCategory: {
+    fontSize: typography.sizes.sm,
+    color: colors.textDim,
+    marginTop: 2,
+  },
+  searchResultAdd: {
+    fontSize: 24,
+    color: colors.accentGold,
+    fontWeight: typography.weights.bold,
+    paddingHorizontal: spacing.sm,
+  },
+  searchResultAdded: {
+    fontSize: 18,
+    color: colors.success,
+    fontWeight: typography.weights.bold,
+    paddingHorizontal: spacing.sm,
   },
 
   // Section headers

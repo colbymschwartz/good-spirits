@@ -102,6 +102,9 @@ export function CocktailDetailScreen() {
   const [showRemix, setShowRemix] = useState(false);
   const [noteText, setNoteText] = useState('');
   const shareCapture = useRef<(() => Promise<void>) | null>(null);
+  const [showSaved, setShowSaved] = useState(false);
+  const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const hideTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const variation = cocktail?.variations[activeVariation] || cocktail?.variations[0];
   const noteKey = cocktail && variation ? cocktail.id + '::' + variation.name : '';
@@ -194,6 +197,13 @@ export function CocktailDetailScreen() {
   const handleNoteChange = (text: string) => {
     setNoteText(text);
     saveNote(cocktail.id, variation.name, text);
+    if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+    if (hideTimerRef.current) clearTimeout(hideTimerRef.current);
+    setShowSaved(false);
+    saveTimerRef.current = setTimeout(() => {
+      setShowSaved(true);
+      hideTimerRef.current = setTimeout(() => setShowSaved(false), 1500);
+    }, 500);
   };
 
   return (
@@ -404,6 +414,9 @@ export function CocktailDetailScreen() {
               multiline
               textAlignVertical="top"
             />
+            {showSaved && (
+              <Text style={styles.savedText}>Saved</Text>
+            )}
           </View>
         </View>
       </ScrollView>
@@ -758,5 +771,10 @@ const styles = StyleSheet.create({
     color: colors.textPrimary,
     minHeight: 80,
     lineHeight: 20,
+  },
+  savedText: {
+    fontSize: typography.sizes.sm,
+    color: colors.accentGold,
+    marginTop: spacing.xs,
   },
 });
