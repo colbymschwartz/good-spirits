@@ -8,6 +8,11 @@ import {
   Image,
   StyleSheet,
   Alert,
+  Keyboard,
+  TouchableWithoutFeedback,
+  Animated,
+  InputAccessoryView,
+  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useRoute } from '@react-navigation/native';
@@ -103,8 +108,10 @@ export function CocktailDetailScreen() {
   const [noteText, setNoteText] = useState('');
   const shareCapture = useRef<(() => Promise<void>) | null>(null);
   const [showSaved, setShowSaved] = useState(false);
+  const savedOpacity = useRef(new Animated.Value(0)).current;
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const hideTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const notesInputId = 'notes-input-accessory';
 
   const variation = cocktail?.variations[activeVariation] || cocktail?.variations[0];
   const noteKey = cocktail && variation ? cocktail.id + '::' + variation.name : '';
@@ -200,15 +207,26 @@ export function CocktailDetailScreen() {
     if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
     if (hideTimerRef.current) clearTimeout(hideTimerRef.current);
     setShowSaved(false);
+    savedOpacity.setValue(0);
     saveTimerRef.current = setTimeout(() => {
       setShowSaved(true);
-      hideTimerRef.current = setTimeout(() => setShowSaved(false), 1500);
+      Animated.timing(savedOpacity, { toValue: 1, duration: 200, useNativeDriver: true }).start();
+      hideTimerRef.current = setTimeout(() => {
+        Animated.timing(savedOpacity, { toValue: 0, duration: 400, useNativeDriver: true }).start(() => {
+          setShowSaved(false);
+        });
+      }, 2000);
     }, 500);
+  };
+
+  const handleNotesDone = () => {
+    Keyboard.dismiss();
   };
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
-      <ScrollView showsVerticalScrollIndicator={false}>
+      <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag">
+        <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}><View>
         {/* Back button only */}
         <View style={styles.topBar}>
           <Pressable onPress={() => navigation.goBack()} style={styles.backButton}>
@@ -404,7 +422,14 @@ export function CocktailDetailScreen() {
 
           {/* Personal Notes */}
           <View style={styles.section}>
-            <Text style={styles.sectionLabel}>MY NOTES</Text>
+            <View style={styles.notesHeader}>
+              <Text style={styles.sectionLabel}>MY NOTES</Text>
+              {showSaved && (
+                <Animated.View style={[styles.savedPill, { opacity: savedOpacity }]}>
+                  <Text style={styles.savedPillText}>Saved ✓</Text>
+                </Animated.View>
+              )}
+            </View>
             <TextInput
               style={styles.notesInput}
               value={noteText}
@@ -413,13 +438,29 @@ export function CocktailDetailScreen() {
               placeholderTextColor={colors.textDim}
               multiline
               textAlignVertical="top"
+              returnKeyType="done"
+              blurOnSubmit={true}
+              inputAccessoryViewID={Platform.OS === 'ios' ? notesInputId : undefined}
             />
-            {showSaved && (
-              <Text style={styles.savedText}>Saved</Text>
+            {noteText.length > 0 && (
+              <Pressable onPress={handleNotesDone} style={styles.notesDoneBtn} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                <Text style={styles.notesDoneText}>Done</Text>
+              </Pressable>
             )}
           </View>
         </View>
+        </View></TouchableWithoutFeedback>
       </ScrollView>
+
+      {Platform.OS === 'ios' && (
+        <InputAccessoryView nativeID={notesInputId}>
+          <View style={styles.keyboardToolbar}>
+            <Pressable onPress={handleNotesDone} style={styles.keyboardDoneBtn}>
+              <Text style={styles.keyboardDoneText}>Done</Text>
+            </Pressable>
+          </View>
+        </InputAccessoryView>
+      )}
 
       <BatchCalculator
         visible={showBatch}
@@ -772,9 +813,50 @@ const styles = StyleSheet.create({
     minHeight: 80,
     lineHeight: 20,
   },
-  savedText: {
-    fontSize: typography.sizes.sm,
+  notesHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: spacing.xs,
+  },
+  savedPill: {
+    backgroundColor: colors.accentGold,
+    paddingHorizontal: 10,
+    paddingVertical: 3,
+    borderRadius: 12,
+  },
+  savedPillText: {
+    fontSize: typography.sizes.xs,
+    fontWeight: typography.weights.bold,
+    color: colors.bgDark,
+  },
+  keyboardToolbar: {
+    backgroundColor: colors.bgCard,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+  },
+  keyboardDoneBtn: {
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.xs,
+  },
+  keyboardDoneText: {
+    fontSize: typography.sizes.md,
+    fontWeight: typography.weights.bold,
     color: colors.accentGold,
+  },
+  notesDoneBtn: {
+    alignSelf: 'flex-end',
+    paddingVertical: spacing.xs,
+    paddingHorizontal: spacing.md,
     marginTop: spacing.xs,
+  },
+  notesDoneText: {
+    fontSize: typography.sizes.body,
+    fontWeight: typography.weights.semibold,
+    color: colors.accentGold,
   },
 });

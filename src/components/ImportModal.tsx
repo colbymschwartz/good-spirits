@@ -9,9 +9,11 @@ import {
   StyleSheet,
   KeyboardAvoidingView,
   Platform,
+  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
+import * as ImagePicker from 'expo-image-picker';
 import { ArtDecoDivider } from './ArtDecoDivider';
 import { BASE_SPIRITS, STYLE_LABELS } from '../data/spirits';
 import { useAppStore } from '../store/useAppStore';
@@ -116,17 +118,57 @@ function parseRecipeText(rawText: string): ParsedRecipe | null {
 
 export function ImportModal({ visible, onClose }: Props) {
   const saveCustomCocktail = useAppStore((s) => s.saveCustomCocktail);
+  const savePhoto = useAppStore((s) => s.savePhoto);
 
   const [rawText, setRawText] = useState('');
   const [parsed, setParsed] = useState<ParsedRecipe | null>(null);
   const [customSpirit, setCustomSpirit] = useState('');
   const [parseError, setParseError] = useState('');
+  const [photoUri, setPhotoUri] = useState<string | null>(null);
+  const [photoMessage, setPhotoMessage] = useState('');
 
   const resetForm = () => {
     setRawText('');
     setParsed(null);
     setCustomSpirit('');
     setParseError('');
+    setPhotoUri(null);
+    setPhotoMessage('');
+  };
+
+  const handleScanRecipe = async () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    const { status } = await ImagePicker.requestCameraPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert('Permission needed', 'Please allow camera access to scan recipes.');
+      return;
+    }
+    const result = await ImagePicker.launchCameraAsync({
+      quality: 0.8,
+    });
+    if (!result.canceled && result.assets[0]) {
+      setPhotoUri(result.assets[0].uri);
+      setPhotoMessage('Photo captured! Paste the recipe text below to import.');
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    }
+  };
+
+  const handleFromGallery = async () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert('Permission needed', 'Please allow photo access to import recipes.');
+      return;
+    }
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ['images'],
+      quality: 0.8,
+    });
+    if (!result.canceled && result.assets[0]) {
+      setPhotoUri(result.assets[0].uri);
+      setPhotoMessage('Photo captured! Paste the recipe text below to import.');
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    }
   };
 
   const handleParse = () => {
@@ -150,8 +192,9 @@ export function ImportModal({ visible, onClose }: Props) {
       ? customSpirit.trim().toLowerCase()
       : parsed.spirit;
 
+    const cocktailId = generateId();
     const cocktail: Cocktail = {
-      id: generateId(),
+      id: cocktailId,
       name: parsed.name,
       style: parsed.style,
       spirit: finalSpirit,
@@ -175,6 +218,9 @@ export function ImportModal({ visible, onClose }: Props) {
     };
 
     saveCustomCocktail(cocktail);
+    if (photoUri) {
+      savePhoto(cocktailId, 'Imported Recipe', photoUri);
+    }
     resetForm();
     onClose();
   };
@@ -212,6 +258,22 @@ export function ImportModal({ visible, onClose }: Props) {
           >
             {!parsed ? (
               <>
+                {/* Photo capture buttons */}
+                <View style={styles.photoRow}>
+                  <Pressable style={styles.photoBtn} onPress={handleScanRecipe}>
+                    <Text style={styles.photoBtnText}>📷 Scan Recipe</Text>
+                  </Pressable>
+                  <Pressable style={styles.photoBtn} onPress={handleFromGallery}>
+                    <Text style={styles.photoBtnText}>📸 From Gallery</Text>
+                  </Pressable>
+                </View>
+
+                {photoMessage ? (
+                  <View style={styles.photoMessageBox}>
+                    <Text style={styles.photoMessageText}>{photoMessage}</Text>
+                  </View>
+                ) : null}
+
                 <Text style={styles.hint}>
                   Paste a recipe from a website, menu, or book. The parser will extract the name, ingredients, and steps.
                 </Text>
@@ -367,6 +429,38 @@ const styles = StyleSheet.create({
   body: {
     padding: spacing.xl,
     paddingBottom: spacing.huge + 40,
+  },
+  photoRow: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+    marginBottom: spacing.md,
+  },
+  photoBtn: {
+    flex: 1,
+    paddingVertical: spacing.md,
+    borderRadius: radius.sm,
+    borderWidth: 1,
+    borderColor: colors.accentGold,
+    backgroundColor: colors.goldOverlay06,
+    alignItems: 'center',
+  },
+  photoBtnText: {
+    fontSize: typography.sizes.body,
+    color: colors.accentGoldLight,
+    fontWeight: typography.weights.semibold,
+  },
+  photoMessageBox: {
+    backgroundColor: colors.goldOverlay12,
+    borderRadius: radius.sm,
+    padding: spacing.md,
+    marginBottom: spacing.md,
+    borderLeftWidth: 3,
+    borderLeftColor: colors.accentGold,
+  },
+  photoMessageText: {
+    fontSize: typography.sizes.body,
+    color: colors.accentGoldLight,
+    lineHeight: 20,
   },
   hint: {
     fontSize: typography.sizes.body,

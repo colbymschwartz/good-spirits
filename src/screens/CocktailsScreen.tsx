@@ -368,6 +368,8 @@ export function CocktailsScreen() {
         keyExtractor={keyExtractor}
         contentContainerStyle={styles.list}
         showsVerticalScrollIndicator={false}
+        keyboardDismissMode="on-drag"
+        keyboardShouldPersistTaps="handled"
         maxToRenderPerBatch={15}
         windowSize={10}
         ListHeaderComponent={ListHeader}

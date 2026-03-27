@@ -7,6 +7,9 @@ import {
   StyleSheet,
   Modal,
   TextInput,
+  Keyboard,
+  TouchableWithoutFeedback,
+  TouchableOpacity,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
@@ -18,6 +21,63 @@ import { ArtDecoDivider } from '../components/ArtDecoDivider';
 import { getCocktailEmoji } from '../utils/cocktailEmoji';
 import { colors, typography, spacing, radius } from '../theme';
 import type { IngredientItem, Cocktail } from '../types';
+
+// Simple fuzzy match: how well does query match a name?
+function fuzzyScore(query: string, name: string): number {
+  const q = query.toLowerCase().trim();
+  const n = name.toLowerCase();
+  if (!q) return 0;
+  if (n === q) return 100;
+  if (n.startsWith(q)) return 90;
+  if (n.includes(q)) return 70;
+  // Check if all words in query appear in name
+  const qWords = q.split(/\s+/);
+  const allWordsMatch = qWords.every((w) => n.includes(w));
+  if (allWordsMatch) return 60;
+  // Partial first-word match
+  const nWords = n.split(/[\s()-]+/);
+  for (const nw of nWords) {
+    if (nw.startsWith(q)) return 50;
+  }
+  // Levenshtein-ish: check if query is close (off by 1-2 chars)
+  if (q.length >= 3 && n.length >= 3) {
+    for (const nw of nWords) {
+      if (Math.abs(nw.length - q.length) <= 2) {
+        let matches = 0;
+        const shorter = q.length <= nw.length ? q : nw;
+        const longer = q.length > nw.length ? q : nw;
+        for (let i = 0; i < shorter.length; i++) {
+          if (longer.includes(shorter[i])) matches++;
+        }
+        if (matches / shorter.length >= 0.7) return 40;
+      }
+    }
+  }
+  return 0;
+}
+
+interface FuzzyMatch {
+  id: string;
+  name: string;
+  query: string;
+  enabled: boolean;
+}
+
+function findBestMatch(query: string, allIngredients: { id: string; name: string }[]): FuzzyMatch | null {
+  const q = query.trim();
+  if (!q) return null;
+  let best: { id: string; name: string; score: number } | null = null;
+  for (const ing of allIngredients) {
+    const score = fuzzyScore(q, ing.name);
+    if (score > 0 && (!best || score > best.score)) {
+      best = { ...ing, score };
+    }
+  }
+  if (best) {
+    return { id: best.id, name: best.name, query: q, enabled: true };
+  }
+  return null;
+}
 
 export function MyBarScreen() {
   const navigation = useNavigation<any>();
@@ -31,6 +91,8 @@ export function MyBarScreen() {
   const [addCategory, setAddCategory] = useState('');
   const [newIngredientName, setNewIngredientName] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
+  const [fuzzyMatches, setFuzzyMatches] = useState<FuzzyMatch[]>([]);
+  const [successMessage, setSuccessMessage] = useState('');
 
   const toggleCollapse = useCallback((category: string) => {
     setCollapsed((prev) => ({ ...prev, [category]: !prev[category] }));
@@ -61,19 +123,36 @@ export function MyBarScreen() {
     setShowAddModal(false);
   }, [newIngredientName, addCategory, addCustomIngredient, toggleBarItem]);
 
-  const makeable = useMemo(() => {
-    if (myBar.length === 0) return [];
+  const { makeable, almostMakeable } = useMemo(() => {
+    if (myBar.length === 0) return { makeable: [] as Cocktail[], almostMakeable: [] as { cocktail: Cocktail; missing: string[] }[] };
     const barSet = new Set(myBar);
-    const results: Cocktail[] = [];
+    const exact: Cocktail[] = [];
+    const almost: { cocktail: Cocktail; missing: string[] }[] = [];
+    const seenAlmost = new Set<string>();
     for (const cocktail of [...COCKTAIL_DATABASE, ...customCocktails]) {
-      const canMake = cocktail.variations.some(
-        (v) =>
-          v.ingredients.length > 0 &&
-          v.ingredients.every((ing) => barSet.has(ing))
-      );
-      if (canMake) results.push(cocktail);
+      let isExact = false;
+      let bestMissing: string[] | null = null;
+      for (const v of cocktail.variations) {
+        if (v.ingredients.length === 0) continue;
+        const missing = v.ingredients.filter((ing) => !barSet.has(ing));
+        if (missing.length === 0) {
+          isExact = true;
+          break;
+        }
+        if (missing.length <= 2 && (!bestMissing || missing.length < bestMissing.length)) {
+          bestMissing = missing;
+        }
+      }
+      if (isExact) {
+        exact.push(cocktail);
+      } else if (bestMissing && !seenAlmost.has(cocktail.id)) {
+        almost.push({ cocktail, missing: bestMissing });
+        seenAlmost.add(cocktail.id);
+      }
     }
-    return results;
+    // Sort almost by fewest missing first
+    almost.sort((a, b) => a.missing.length - b.missing.length);
+    return { makeable: exact, almostMakeable: almost.slice(0, 8) };
   }, [myBar, customCocktails]);
 
   // Merge static + custom ingredients per category, sorted alphabetically
@@ -126,6 +205,63 @@ export function MyBarScreen() {
     });
     return results.slice(0, 15);
   }, [searchQuery, customIngredients]);
+
+  // Flat list of all ingredients for fuzzy matching
+  const allIngredients = useMemo(() => {
+    const items: { id: string; name: string }[] = [];
+    for (const cat of INGREDIENT_INDEX) {
+      for (const item of cat.items) {
+        items.push({ id: item.id, name: item.name });
+      }
+    }
+    for (const [, catItems] of Object.entries(customIngredients)) {
+      for (const item of catItems) {
+        items.push({ id: item.id, name: item.name });
+      }
+    }
+    return items;
+  }, [customIngredients]);
+
+  const handleVoiceStock = useCallback(() => {
+    const raw = searchQuery.trim();
+    if (!raw) return;
+    // Split by commas, "and", newlines
+    const segments = raw.split(/[,\n]+|\band\b/i).map((s) => s.trim()).filter(Boolean);
+    const matches: FuzzyMatch[] = [];
+    for (const seg of segments) {
+      const match = findBestMatch(seg, allIngredients);
+      if (match) {
+        // Skip already-in-bar items but still show them
+        matches.push({ ...match, enabled: !myBar.includes(match.id) });
+      }
+    }
+    if (matches.length > 0) {
+      setFuzzyMatches(matches);
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+      Keyboard.dismiss();
+    }
+  }, [searchQuery, allIngredients, myBar]);
+
+  const handleToggleFuzzyMatch = useCallback((index: number) => {
+    setFuzzyMatches((prev) =>
+      prev.map((m, i) => (i === index ? { ...m, enabled: !m.enabled } : m))
+    );
+  }, []);
+
+  const handleAddAllMatches = useCallback(() => {
+    const toAdd = fuzzyMatches.filter((m) => m.enabled && !myBar.includes(m.id));
+    for (const match of toAdd) {
+      toggleBarItem(match.id);
+    }
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    const count = toAdd.length;
+    setFuzzyMatches([]);
+    setSearchQuery('');
+    if (count > 0) {
+      setSuccessMessage(`${count} ingredient${count !== 1 ? 's' : ''} added to your bar!`);
+      setTimeout(() => setSuccessMessage(''), 2500);
+    }
+  }, [fuzzyMatches, myBar, toggleBarItem]);
 
   const handleAddFromSearch = useCallback(
     (id: string) => {
@@ -224,16 +360,68 @@ export function MyBarScreen() {
 
         {/* Search / Dictation Input */}
         <View style={styles.searchSection}>
-          <TextInput
-            style={styles.searchInput}
-            value={searchQuery}
-            onChangeText={setSearchQuery}
-            placeholder="Type or dictate what you have..."
-            placeholderTextColor={colors.textDim}
-            returnKeyType="search"
-            clearButtonMode="while-editing"
-          />
-          {searchResults.length > 0 && (
+          <View style={styles.searchRow}>
+            <TextInput
+              style={[styles.searchInput, { flex: 1 }]}
+              value={searchQuery}
+              onChangeText={(text) => {
+                setSearchQuery(text);
+                setFuzzyMatches([]);
+                setSuccessMessage('');
+              }}
+              placeholder="Type or dictate: bourbon, campari, lime..."
+              placeholderTextColor={colors.textDim}
+              returnKeyType="search"
+              onSubmitEditing={handleVoiceStock}
+              clearButtonMode="while-editing"
+            />
+            {searchQuery.includes(',') || /\band\b/i.test(searchQuery) ? (
+              <TouchableOpacity
+                style={styles.stockBtn}
+                onPress={handleVoiceStock}
+                activeOpacity={0.7}
+                hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+              >
+                <Text style={styles.stockBtnText}>Stock</Text>
+              </TouchableOpacity>
+            ) : null}
+          </View>
+
+          {/* Fuzzy match confirmation list */}
+          {fuzzyMatches.length > 0 && (
+            <View style={styles.fuzzyBox}>
+              <Text style={styles.fuzzyTitle}>Found:</Text>
+              {fuzzyMatches.map((match, idx) => (
+                <Pressable
+                  key={match.id + idx}
+                  style={styles.fuzzyRow}
+                  onPress={() => handleToggleFuzzyMatch(idx)}
+                >
+                  <View style={[styles.fuzzyCheck, match.enabled && styles.fuzzyCheckActive]}>
+                    {match.enabled && <Text style={styles.fuzzyCheckmark}>✓</Text>}
+                  </View>
+                  <Text style={[styles.fuzzyName, !match.enabled && styles.fuzzyNameDisabled]}>
+                    {match.name}
+                  </Text>
+                  {myBar.includes(match.id) && (
+                    <Text style={styles.fuzzyAlready}>already stocked</Text>
+                  )}
+                </Pressable>
+              ))}
+              <Pressable style={styles.addAllBtn} onPress={handleAddAllMatches}>
+                <Text style={styles.addAllBtnText}>Add All</Text>
+              </Pressable>
+            </View>
+          )}
+
+          {/* Success message */}
+          {successMessage ? (
+            <View style={styles.successBox}>
+              <Text style={styles.successText}>{successMessage}</Text>
+            </View>
+          ) : null}
+
+          {searchResults.length > 0 && fuzzyMatches.length === 0 && (
             <View style={styles.searchResults}>
               {searchResults.map((item) => (
                 <Pressable
@@ -288,6 +476,32 @@ export function MyBarScreen() {
               +{makeable.length - 10} more cocktails
             </Text>
           )}
+          {makeable.length === 0 && almostMakeable.length > 0 && (
+            <>
+              <Text style={styles.almostTitle}>Almost There:</Text>
+              {almostMakeable.slice(0, 5).map((item) => (
+                <Pressable
+                  key={item.cocktail.id}
+                  style={styles.makeableItem}
+                  onPress={() =>
+                    navigation.navigate('CocktailsTab', {
+                      screen: 'CocktailDetail',
+                      params: { cocktailId: item.cocktail.id },
+                    })
+                  }
+                >
+                  <Text style={styles.makeableEmoji}>{getCocktailEmoji(item.cocktail)}</Text>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.makeableName}>{item.cocktail.name}</Text>
+                    <Text style={styles.missingText}>
+                      Need: {item.missing.map((m) => m.replace(/-/g, ' ')).join(', ')}
+                    </Text>
+                  </View>
+                  <Text style={styles.makeableArrow}>→</Text>
+                </Pressable>
+              ))}
+            </>
+          )}
         </View>
 
         <ArtDecoDivider style={{ marginTop: spacing.md }} />
@@ -297,7 +511,7 @@ export function MyBarScreen() {
         </View>
       </View>
     ),
-    [myBar.length, makeable, navigation, searchQuery, searchResults, handleAddFromSearch]
+    [myBar.length, myBar, makeable, almostMakeable, navigation, searchQuery, searchResults, handleAddFromSearch, fuzzyMatches, handleVoiceStock, handleToggleFuzzyMatch, handleAddAllMatches, successMessage]
   );
 
   return (
@@ -311,6 +525,8 @@ export function MyBarScreen() {
         ListHeaderComponent={ListHeader}
         stickySectionHeadersEnabled={false}
         showsVerticalScrollIndicator={false}
+        keyboardDismissMode="on-drag"
+        keyboardShouldPersistTaps="handled"
         contentContainerStyle={styles.list}
       />
 
@@ -431,6 +647,18 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     paddingTop: spacing.sm,
   },
+  almostTitle: {
+    fontSize: typography.sizes.body,
+    fontWeight: typography.weights.semibold,
+    color: colors.textSecondary,
+    marginTop: spacing.md,
+    marginBottom: spacing.xs,
+  },
+  missingText: {
+    fontSize: typography.sizes.sm,
+    color: colors.accentGoldDim,
+    marginTop: 2,
+  },
 
   // Browse
   browseHeader: {
@@ -450,6 +678,99 @@ const styles = StyleSheet.create({
     paddingTop: spacing.md,
     paddingBottom: spacing.sm,
     zIndex: 10,
+  },
+  searchRow: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+    alignItems: 'center',
+  },
+  stockBtn: {
+    backgroundColor: colors.accentGold,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.md,
+    borderRadius: radius.sm,
+  },
+  stockBtnText: {
+    fontSize: typography.sizes.md,
+    fontWeight: typography.weights.bold,
+    color: colors.bgDark,
+  },
+  fuzzyBox: {
+    backgroundColor: colors.bgCard,
+    borderWidth: 1,
+    borderColor: colors.accentGold,
+    borderRadius: radius.sm,
+    padding: spacing.md,
+    marginTop: spacing.sm,
+  },
+  fuzzyTitle: {
+    fontSize: typography.sizes.body,
+    fontWeight: typography.weights.bold,
+    color: colors.accentGoldLight,
+    marginBottom: spacing.sm,
+  },
+  fuzzyRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: spacing.xs,
+    gap: spacing.sm,
+  },
+  fuzzyCheck: {
+    width: 22,
+    height: 22,
+    borderRadius: 6,
+    borderWidth: 2,
+    borderColor: colors.textDim,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  fuzzyCheckActive: {
+    backgroundColor: colors.success,
+    borderColor: colors.success,
+  },
+  fuzzyCheckmark: {
+    fontSize: 13,
+    fontWeight: typography.weights.bold,
+    color: '#fff',
+  },
+  fuzzyName: {
+    flex: 1,
+    fontSize: typography.sizes.md,
+    color: colors.textPrimary,
+    fontWeight: typography.weights.medium,
+  },
+  fuzzyNameDisabled: {
+    color: colors.textDim,
+    textDecorationLine: 'line-through',
+  },
+  fuzzyAlready: {
+    fontSize: typography.sizes.xs,
+    color: colors.textDim,
+    fontStyle: 'italic',
+  },
+  addAllBtn: {
+    backgroundColor: colors.accentGold,
+    paddingVertical: spacing.sm,
+    borderRadius: radius.sm,
+    alignItems: 'center',
+    marginTop: spacing.sm,
+  },
+  addAllBtnText: {
+    fontSize: typography.sizes.md,
+    fontWeight: typography.weights.bold,
+    color: colors.bgDark,
+  },
+  successBox: {
+    backgroundColor: colors.successOverlay15,
+    borderRadius: radius.sm,
+    padding: spacing.sm,
+    marginTop: spacing.sm,
+    alignItems: 'center',
+  },
+  successText: {
+    fontSize: typography.sizes.body,
+    color: colors.success,
+    fontWeight: typography.weights.semibold,
   },
   searchInput: {
     backgroundColor: colors.bgCard,
