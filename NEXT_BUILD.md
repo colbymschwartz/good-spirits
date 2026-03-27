@@ -17,6 +17,9 @@
 ## 🆕 New Features
 4. **Voice stock My Bar** — text input + mic button on My Bar screen. User says/types what they have, fuzzy-match against ingredient database, confirm, auto-toggle. Uses iOS built-in keyboard dictation + custom matching logic.
 
+5. **"Stock your bar" hint** — show a hint on Cocktails screen for new users who haven't added any ingredients yet
+6. **First launch onboarding tour** — 4 swipeable screens (Welcome, Stock Your Bar, Rate/Batch/Remix, Import/Create). Only shows once, skip button, navy/gold theme, "Let's Go" CTA.
+
 ## 📝 Tester Feedback
 *(Add items here as feedback comes in)*
 
