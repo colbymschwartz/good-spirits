@@ -64,13 +64,21 @@ Open `localhost:8090` in browser, manually verify:
 - **NEVER modify `app.json` version/buildNumber** unless explicitly told to.
 - After coding, report completion to Colby via Discord. He decides when to ship.
 
-### 5. Commit Hygiene
+### 5. Build Strategy: EAS Cloud Only (No Local Xcode)
+- **We use EAS cloud builds exclusively.** Do not attempt local Xcode builds.
+- **Why:** macOS 26.2 ships Ruby 4.0.2; CocoaPods 1.16.2 has a Unicode encoding bug incompatible with Ruby 4.0. `pod install` crashes. This is upstream — no fix available yet.
+- **Free tier:** 30 builds/month. Plenty if we're disciplined.
+- **Queue management:** Build after 6 PM PT or on weekends for fast queues (sub-5 min). Avoid weekday afternoons (1.5+ hour waits).
+- **Build discipline:** Test EVERYTHING on web preview first (`npx expo start --web --port 8090`). Only trigger an EAS build after QA passes on web and Colby approves. Target: 4-6 builds/month.
+- **If we outgrow 30 builds:** $99/month Production plan (200 builds, priority queue). Decision is Colby's.
+
+### 6. Commit Hygiene
 - **Fix commits:** `Fix: description` (e.g., `Fix: stock button tap handling`)
 - **Feature commits:** `Add: description` (e.g., `Add: batch calculator screen`)
 - **Version commits:** `vX.Y.Z — summary` (e.g., `v1.6.0 — 5 QA bug fixes`)
 - Push to `main` branch (no feature branches at this stage).
 
-### 6. Data Integrity
+### 7. Data Integrity
 - Cocktail data lives in `src/data/`. Any changes must maintain the schema:
   - `name` (string)
   - `spirit` (string, e.g., "gin", "whiskey")

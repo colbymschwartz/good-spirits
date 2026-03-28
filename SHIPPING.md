@@ -81,30 +81,11 @@ After successful TestFlight upload:
 - [ ] Monitor TestFlight for crash reports (first 24h)
 - [ ] Check for tester feedback in TestFlight or Discord
 
-## Local Builds (Zero-Queue Fallback)
+## Local Builds — BLOCKED
 
-If EAS queue is too slow, build locally on Mac mini:
+**Local Xcode builds are not viable as of 2026-03-28.** macOS 26.2 ships Ruby 4.0.2; CocoaPods 1.16.2 has a Unicode encoding bug. `pod install` crashes. Upstream fix pending.
 
-### One-Time Setup
-```bash
-# Install Xcode (if not already)
-xcode-select --install
-
-# Configure signing certs
-eas credentials
-
-# Test local build capability
-eas build --platform ios --profile preview --local --no-wait
-```
-
-### Build Locally
-```bash
-eas build --platform ios --profile preview --local
-```
-- Runs on Mac mini, uses local Xcode
-- No queue, typically 5-10 minutes
-- Requires disk space (~5GB per build)
-- Still uploads to Expo for TestFlight submission
+**Strategy: EAS cloud builds only.** Stay within free tier (30/month) by testing on web first and only building after QA passes. See `LOCAL_BUILDS.md` for details when this becomes available again.
 
 ## Troubleshooting
 

@@ -1,6 +1,16 @@
 # LOCAL_BUILDS.md — Zero-Queue EAS Build Fallback
 
-## Why Local Builds?
+## ⚠️ STATUS: BLOCKED (as of 2026-03-28)
+
+**Local Xcode builds are not viable.** macOS 26.2 ships Ruby 4.0.2 and CocoaPods 1.16.2 has a Unicode encoding bug incompatible with Ruby 4.0. `pod install` crashes. This is an upstream CocoaPods issue — no fix available yet.
+
+**Current strategy: EAS cloud builds only.** See CLAUDE.md Rule #5 for build discipline and queue management.
+
+This file is preserved for when CocoaPods ships a Ruby 4.0 fix, at which point local builds become a viable fallback again.
+
+---
+
+## Why Local Builds? (When Available)
 
 EAS free tier has unpredictable queue times:
 - **Off-peak:** 4-10 minutes
