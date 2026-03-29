@@ -135,14 +135,26 @@ export function CocktailsScreen() {
     const q = search ? search.toLowerCase().trim() : '';
     const sf = spiritFilter !== 'all' ? spiritFilter : '';
 
+    // Count active filter categories to decide strict vs broad matching
+    const activeFilterCount = (sf ? 1 : 0) +
+      (styleFilter !== 'all' ? 1 : 0) +
+      (moodFilter !== 'all' ? 1 : 0) +
+      (barFilter !== 'all' && myBar.length > 0 ? 1 : 0);
+
     if (sf) {
-      results = results.filter((c) =>
-        c.spirit === sf ||
-        c.variations.some((v) =>
-          (v.spec && v.spec.some((s: string) => s.toLowerCase().includes(sf))) ||
-          (v.ingredients && v.ingredients.some((ing: string) => ing.toLowerCase().includes(sf)))
-        )
-      );
+      if (activeFilterCount > 1) {
+        // Strict: only match primary spirit when combining with other filters
+        results = results.filter((c) => c.spirit === sf);
+      } else {
+        // Broad: also match variation ingredients when spirit is the only filter
+        results = results.filter((c) =>
+          c.spirit === sf ||
+          c.variations.some((v) =>
+            (v.spec && v.spec.some((s: string) => s.toLowerCase().includes(sf))) ||
+            (v.ingredients && v.ingredients.some((ing: string) => ing.toLowerCase().includes(sf)))
+          )
+        );
+      }
     }
     if (styleFilter !== 'all') {
       if (styleFilter === 'frozen') {
