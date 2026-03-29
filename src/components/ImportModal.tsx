@@ -19,6 +19,8 @@ import { BASE_SPIRITS, STYLE_LABELS } from '../data/spirits';
 import { useAppStore } from '../store/useAppStore';
 import { colors, typography, spacing, radius } from '../theme';
 import type { Cocktail } from '../types';
+import { extractRecipeFromUrl } from '../utils/recipeExtraction';
+import { extractTextFromImage } from '../utils/ocrService';
 
 interface Props {
   visible: boolean;
@@ -126,6 +128,9 @@ export function ImportModal({ visible, onClose }: Props) {
   const [parseError, setParseError] = useState('');
   const [photoUri, setPhotoUri] = useState<string | null>(null);
   const [photoMessage, setPhotoMessage] = useState('');
+  const [urlInput, setUrlInput] = useState('');
+  const [isLoadingUrl, setIsLoadingUrl] = useState(false);
+  const [isOcrProcessing, setIsOcrProcessing] = useState(false);
 
   const resetForm = () => {
     setRawText('');
@@ -134,6 +139,28 @@ export function ImportModal({ visible, onClose }: Props) {
     setParseError('');
     setPhotoUri(null);
     setPhotoMessage('');
+    setUrlInput('');
+    setIsLoadingUrl(false);
+    setIsOcrProcessing(false);
+  };
+
+  const runOcr = async (base64Data: string) => {
+    setIsOcrProcessing(true);
+    setPhotoMessage('Extracting text from photo...');
+    try {
+      const ocrResult = await extractTextFromImage(base64Data);
+      if (ocrResult && ocrResult.text.trim()) {
+        setRawText(ocrResult.text);
+        setPhotoMessage('Text extracted from photo! Review and parse below.');
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      } else {
+        setPhotoMessage('Could not extract text. API key may not be configured yet. Paste the recipe text manually below.');
+      }
+    } catch {
+      setPhotoMessage('OCR failed. Paste the recipe text manually below.');
+    } finally {
+      setIsOcrProcessing(false);
+    }
   };
 
   const handleScanRecipe = async () => {
@@ -145,11 +172,14 @@ export function ImportModal({ visible, onClose }: Props) {
     }
     const result = await ImagePicker.launchCameraAsync({
       quality: 0.8,
+      base64: true,
     });
     if (!result.canceled && result.assets[0]) {
       setPhotoUri(result.assets[0].uri);
-      setPhotoMessage('Photo captured! Paste the recipe text below to import.');
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      if (result.assets[0].base64) {
+        runOcr(result.assets[0].base64);
+      }
     }
   };
 
@@ -163,11 +193,40 @@ export function ImportModal({ visible, onClose }: Props) {
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ['images'],
       quality: 0.8,
+      base64: true,
     });
     if (!result.canceled && result.assets[0]) {
       setPhotoUri(result.assets[0].uri);
-      setPhotoMessage('Photo captured! Paste the recipe text below to import.');
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      if (result.assets[0].base64) {
+        runOcr(result.assets[0].base64);
+      }
+    }
+  };
+
+  const handleLoadFromUrl = async () => {
+    if (!urlInput.trim()) return;
+    
+    setIsLoadingUrl(true);
+    setParseError('');
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    
+    try {
+      const extracted = await extractRecipeFromUrl(urlInput.trim());
+      
+      if (extracted && extracted.ingredients.length > 0) {
+        // Convert extracted recipe to raw text format
+        const textFormat = `${extracted.name}\n\n${extracted.ingredients.join('\n')}\n\nSteps:\n${extracted.instructions}`;
+        setRawText(textFormat);
+        setPhotoMessage(`✅ Loaded from URL! Review and parse below.`);
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      } else {
+        setParseError('Could not extract recipe from that URL. Try pasting the text manually instead.');
+      }
+    } catch (error) {
+      setParseError('Failed to load URL. Check the address and try again.');
+    } finally {
+      setIsLoadingUrl(false);
     }
   };
 
@@ -260,11 +319,11 @@ export function ImportModal({ visible, onClose }: Props) {
               <>
                 {/* Photo capture buttons */}
                 <View style={styles.photoRow}>
-                  <Pressable style={styles.photoBtn} onPress={handleScanRecipe}>
-                    <Text style={styles.photoBtnText}>📷 Scan Recipe</Text>
+                  <Pressable style={[styles.photoBtn, isOcrProcessing && styles.urlBtnDisabled]} onPress={handleScanRecipe} disabled={isOcrProcessing}>
+                    <Text style={styles.photoBtnText}>{isOcrProcessing ? '...' : '📷 Scan Recipe'}</Text>
                   </Pressable>
-                  <Pressable style={styles.photoBtn} onPress={handleFromGallery}>
-                    <Text style={styles.photoBtnText}>📸 From Gallery</Text>
+                  <Pressable style={[styles.photoBtn, isOcrProcessing && styles.urlBtnDisabled]} onPress={handleFromGallery} disabled={isOcrProcessing}>
+                    <Text style={styles.photoBtnText}>{isOcrProcessing ? '...' : '📸 From Gallery'}</Text>
                   </Pressable>
                 </View>
 
@@ -273,6 +332,32 @@ export function ImportModal({ visible, onClose }: Props) {
                     <Text style={styles.photoMessageText}>{photoMessage}</Text>
                   </View>
                 ) : null}
+
+                {/* URL input — hidden on web due to CORS restrictions */}
+                {Platform.OS !== 'web' && (
+                  <View style={styles.urlSection}>
+                    <Text style={styles.label}>OR IMPORT FROM URL</Text>
+                    <View style={styles.urlRow}>
+                      <TextInput
+                        style={[styles.input, styles.urlInput]}
+                        value={urlInput}
+                        onChangeText={setUrlInput}
+                        placeholder="https://example.com/cocktail-recipe"
+                        placeholderTextColor={colors.textDim}
+                        autoCapitalize="none"
+                        keyboardType="url"
+                        autoCorrect={false}
+                      />
+                      <Pressable
+                        style={[styles.urlBtn, (!urlInput.trim() || isLoadingUrl) && styles.urlBtnDisabled]}
+                        onPress={handleLoadFromUrl}
+                        disabled={!urlInput.trim() || isLoadingUrl}
+                      >
+                        <Text style={styles.urlBtnText}>{isLoadingUrl ? '...' : 'Load'}</Text>
+                      </Pressable>
+                    </View>
+                  </View>
+                )}
 
                 <Text style={styles.hint}>
                   Paste a recipe from a website, menu, or book. The parser will extract the name, ingredients, and steps.
@@ -461,6 +546,33 @@ const styles = StyleSheet.create({
     fontSize: typography.sizes.body,
     color: colors.accentGoldLight,
     lineHeight: 20,
+  },
+  urlSection: {
+    marginBottom: spacing.md,
+  },
+  urlRow: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+  },
+  urlInput: {
+    flex: 1,
+  },
+  urlBtn: {
+    backgroundColor: colors.accentGold,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: 10,
+    borderRadius: radius.sm,
+    justifyContent: 'center',
+    alignItems: 'center',
+    minWidth: 70,
+  },
+  urlBtnDisabled: {
+    opacity: 0.4,
+  },
+  urlBtnText: {
+    fontSize: typography.sizes.md,
+    fontWeight: typography.weights.bold,
+    color: colors.bgDark,
   },
   hint: {
     fontSize: typography.sizes.body,

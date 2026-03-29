@@ -174,41 +174,65 @@ export function CocktailsScreen() {
     }
 
     if (q) {
-      results = results.filter((c) =>
-        c.name.toLowerCase().includes(q) ||
-        c.spirit.toLowerCase().includes(q) ||
-        c.style.toLowerCase().includes(q) ||
-        (c.tags && c.tags.some((t: string) => t.toLowerCase().includes(q))) ||
+      // Split query into keywords for multi-word search
+      const keywords = q.split(/\s+/).filter((k) => k.length > 0);
+
+      // Helper: check if a keyword matches any field of a cocktail
+      const cocktailMatchesKeyword = (c: Cocktail, kw: string): boolean =>
+        c.name.toLowerCase().includes(kw) ||
+        c.spirit.toLowerCase().includes(kw) ||
+        c.style.toLowerCase().includes(kw) ||
+        (c.tags && c.tags.some((t: string) => t.toLowerCase().includes(kw))) ||
         c.variations.some((v) =>
-          v.name.toLowerCase().includes(q) ||
-          (v.spec && v.spec.some((s: string) => s.toLowerCase().includes(q))) ||
-          (v.ingredients && v.ingredients.some((ing: string) => ing.toLowerCase().includes(q)))
-        )
+          v.name.toLowerCase().includes(kw) ||
+          (v.spec && v.spec.some((s: string) => s.toLowerCase().includes(kw))) ||
+          (v.ingredients && v.ingredients.some((ing: string) => ing.toLowerCase().includes(kw)))
+        );
+
+      // Filter: cocktail must match ALL keywords somewhere
+      results = results.filter((c) =>
+        keywords.every((kw) => cocktailMatchesKeyword(c, kw))
       );
+
+      // Score results for ranking: spirit keyword matches on spirit field get priority
+      const scoreResult = (c: Cocktail): number => {
+        let score = 0;
+        for (const kw of keywords) {
+          if (c.spirit.toLowerCase().includes(kw)) score += 10;
+          if (c.name.toLowerCase().includes(kw)) score += 5;
+          if (c.style.toLowerCase().includes(kw)) score += 3;
+        }
+        return score;
+      };
+
+      results.sort((a, b) => scoreResult(b) - scoreResult(a));
     }
 
     const stf = styleFilter !== 'all' ? styleFilter : '';
 
     // When searching, expand matching variations into separate cards
     if (q) {
+      const keywords = q.split(/\s+/).filter((k) => k.length > 0);
       const expanded: { cocktail: typeof results[0]; varIdx: number }[] = [];
       results.forEach((c) => {
         const matchingVarIndices: number[] = [];
         c.variations.forEach((v, i) => {
-          if (
-            v.name.toLowerCase().includes(q) ||
-            (v.spec && v.spec.some((s: string) => s.toLowerCase().includes(q))) ||
-            (v.ingredients && v.ingredients.some((ing: string) => ing.toLowerCase().includes(q)))
-          ) {
+          const varMatchesAnyKeyword = keywords.some((kw) =>
+            v.name.toLowerCase().includes(kw) ||
+            (v.spec && v.spec.some((s: string) => s.toLowerCase().includes(kw))) ||
+            (v.ingredients && v.ingredients.some((ing: string) => ing.toLowerCase().includes(kw)))
+          );
+          if (varMatchesAnyKeyword) {
             matchingVarIndices.push(i);
           }
         });
 
         if (matchingVarIndices.length > 0) {
-          if (c.name.toLowerCase().includes(q)) {
+          const nameMatchesAny = keywords.some((kw) => c.name.toLowerCase().includes(kw));
+          if (nameMatchesAny) {
             expanded.push({ cocktail: c, varIdx: 0 });
             matchingVarIndices.forEach((i) => {
-              if (i > 0 && c.variations[i].name.toLowerCase().includes(q)) {
+              if (i > 0 && keywords.some((kw) => c.variations[i].name.toLowerCase().includes(kw))) {
                 expanded.push({ cocktail: c, varIdx: i });
               }
             });
@@ -218,10 +242,12 @@ export function CocktailsScreen() {
             });
           }
         } else if (
-          c.name.toLowerCase().includes(q) ||
-          c.spirit.toLowerCase().includes(q) ||
-          c.style.toLowerCase().includes(q) ||
-          (c.tags && c.tags.some((t: string) => t.toLowerCase().includes(q)))
+          keywords.some((kw) =>
+            c.name.toLowerCase().includes(kw) ||
+            c.spirit.toLowerCase().includes(kw) ||
+            c.style.toLowerCase().includes(kw) ||
+            (c.tags && c.tags.some((t: string) => t.toLowerCase().includes(kw)))
+          )
         ) {
           expanded.push({ cocktail: c, varIdx: 0 });
         }
