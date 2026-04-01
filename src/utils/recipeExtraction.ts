@@ -36,13 +36,19 @@ export async function extractRecipeFromUrl(url: string): Promise<ExtractedRecipe
 
 /**
  * Extract recipe from image using Google Cloud Vision API
- * Requires GOOGLE_CLOUD_VISION_API_KEY environment variable
  */
-export async function extractRecipeFromImage(imageUri: string): Promise<ExtractedRecipe | null> {
-  // For now, return null - will implement after getting API key
-  // TODO: Implement Google Cloud Vision OCR
-  console.log('OCR not yet implemented for:', imageUri);
-  return null;
+export async function extractRecipeFromImage(base64Data: string): Promise<ExtractedRecipe | null> {
+  try {
+    const { extractTextFromImage } = await import('./ocrService');
+    const ocrResult = await extractTextFromImage(base64Data);
+    if (!ocrResult || !ocrResult.text.trim()) {
+      return null;
+    }
+    return parseRecipeText(ocrResult.text);
+  } catch (error) {
+    console.error('Image recipe extraction failed:', error);
+    return null;
+  }
 }
 
 /**
@@ -53,8 +59,10 @@ export function parseRecipeText(text: string): ExtractedRecipe | null {
   
   if (lines.length === 0) return null;
 
-  // First non-empty line is likely the name
-  const name = lines[0].replace(/^recipe:?\s*/i, '').trim();
+  // First non-empty line is likely the name — unless it's a section header
+  const sectionHeaderPattern = /^(ingredient|direction|instruction|step|method|how to make|what you need)/i;
+  const rawName = lines[0].replace(/^recipe:?\s*/i, '').trim();
+  const name = sectionHeaderPattern.test(rawName) ? 'Imported Recipe' : rawName;
   
   const ingredients: string[] = [];
   const instructionLines: string[] = [];
@@ -89,8 +97,8 @@ export function parseRecipeText(text: string): ExtractedRecipe | null {
       continue;
     }
     
-    // Clean bullet points
-    const cleaned = line.replace(/^[-\u2022\*]\s*/, '');
+    // Clean bullet points (including ⚫ black circle emoji)
+    const cleaned = line.replace(/^[-\u2022\*⚫]\s*/, '');
     
     // Ingredient detection: has measurement or starts with number
     const startsWithNumber = /^\d/.test(cleaned);

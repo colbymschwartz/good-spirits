@@ -24,6 +24,7 @@
 - **Color-coded spirit icons** — different background tints per spirit type
 
 ## 📱 App Features
+- **Delete custom cocktails** — swipe-to-delete or long-press to remove custom cocktails from My Cocktails
 - **Shopping list** — based on "Almost There" drinks, generate a shopping list of missing ingredients
 - **Cocktail of the Week email** — opt-in weekly email with a featured cocktail
 - **Share card improvements** — add the user's photo to the share card if they have one
