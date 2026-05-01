@@ -9,15 +9,17 @@ export const SPIRIT_ICONS: SpiritIcons = {
   vodka: '❄️',
   brandy: '🍷',
   champagne: '🍾',
+  'non-alcoholic': '🌿',
   other: '✨',
 };
 
-export const BASE_SPIRITS = ['whiskey', 'gin', 'rum', 'tequila', 'mezcal', 'vodka', 'brandy', 'champagne'] as const;
+export const BASE_SPIRITS = ['whiskey', 'gin', 'rum', 'tequila', 'mezcal', 'vodka', 'brandy', 'champagne', 'non-alcoholic'] as const;
 
 export function spiritLabel(s: string): string {
-  return s === 'all'
-    ? 'All Spirits'
-    : (SPIRIT_ICONS[s] || '✨') + ' ' + s.charAt(0).toUpperCase() + s.slice(1);
+  if (s === 'all') return 'All Spirits';
+  const icon = SPIRIT_ICONS[s] || '✨';
+  const name = s === 'non-alcoholic' ? 'Non-Alcoholic' : s.charAt(0).toUpperCase() + s.slice(1);
+  return icon + ' ' + name;
 }
 
 export const STYLE_LABELS: StyleLabels = {

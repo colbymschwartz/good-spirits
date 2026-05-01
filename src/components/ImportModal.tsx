@@ -10,6 +10,9 @@ import {
   KeyboardAvoidingView,
   Platform,
   Alert,
+  Keyboard,
+  TouchableWithoutFeedback,
+  InputAccessoryView,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
@@ -48,6 +51,40 @@ function parseIngredientId(specLine: string): string {
     .replace(/^(oz|ml|cl|dash(es)?|barspoon|tsp|tbsp|cup|splash|rinse|drop)\s+/i, '')
     .trim();
   return cleaned.toLowerCase().replace(/\s+/g, '-') || specLine.toLowerCase().replace(/\s+/g, '-');
+}
+
+function detectGlass(text: string, name: string): string {
+  const t = (text + ' ' + name).toLowerCase();
+  if (/nick[\s-]?and[\s-]?nora/.test(t)) return 'nick-and-nora';
+  if (/martini glass|cocktail glass|v[\s-]?shaped/.test(t)) return 'martini';
+  if (/\bcoupe\b/.test(t)) return 'coupe';
+  if (/\bflute\b|champagne glass/.test(t)) return 'flute';
+  if (/\bcollins\b/.test(t)) return 'collins';
+  if (/highball/.test(t)) return 'highball';
+  if (/copper mug|mule mug/.test(t)) return 'copper-mug';
+  if (/tiki mug|tiki glass/.test(t)) return 'tiki';
+  if (/\brocks\b|old[\s-]?fashioned glass|lowball|double rocks|\bdof\b/.test(t)) return 'rocks';
+  // Cocktail name fallback: "...martini" or "martini..." in name suggests martini
+  const n = name.toLowerCase().trim();
+  if (/(^|\s)martini(\s|$)/.test(n)) return 'martini';
+  return 'rocks';
+}
+
+function detectMethod(text: string): string {
+  const t = text.toLowerCase();
+  if (/\bmuddle/.test(t)) return 'Muddle';
+  if (/\bshake/.test(t)) return 'Shake';
+  if (/\bblend/.test(t)) return 'Blend';
+  if (/\bswizzle/.test(t)) return 'Swizzle';
+  if (/\blayer/.test(t)) return 'Layer';
+  if (/\bbuild|pour (?:over|into).*ice/.test(t)) return 'Build';
+  if (/\bstir/.test(t)) return 'Stir';
+  return 'Stir';
+}
+
+function detectGarnish(text: string): string {
+  const match = text.match(/garnish(?:\s*with)?\s*[:\-]?\s*([^\n.]+)/i);
+  return match ? match[1].trim().replace(/\.$/, '') : '';
 }
 
 function parseRecipeText(rawText: string): ParsedRecipe | null {
@@ -112,15 +149,18 @@ function parseRecipeText(rawText: string): ParsedRecipe | null {
     steps: steps.join(' '),
     spirit: 'other',
     style: 'spirit-forward',
-    glass: 'rocks',
-    method: 'Stir',
-    garnish: '',
+    glass: detectGlass(rawText, name),
+    method: detectMethod(rawText),
+    garnish: detectGarnish(rawText),
   };
 }
 
+const GLASS_OPTIONS = ['rocks', 'coupe', 'highball', 'martini', 'nick-and-nora', 'tiki', 'copper-mug', 'flute', 'collins'];
+const METHOD_OPTIONS = ['Stir', 'Shake', 'Build', 'Muddle', 'Blend', 'Swizzle', 'Layer'];
+const IMPORT_INPUT_ACCESSORY = 'import-input-accessory';
+
 export function ImportModal({ visible, onClose }: Props) {
   const saveCustomCocktail = useAppStore((s) => s.saveCustomCocktail);
-  const savePhoto = useAppStore((s) => s.savePhoto);
 
   const [rawText, setRawText] = useState('');
   const [parsed, setParsed] = useState<ParsedRecipe | null>(null);
@@ -276,10 +316,10 @@ export function ImportModal({ visible, onClose }: Props) {
       }],
     };
 
+    // Note: photoUri is the OCR source image, not a drink photo.
+    // Don't save it as the cocktail's main photo (OCR-UX issue #2).
+    // User can take a real drink photo later from the cocktail detail screen.
     saveCustomCocktail(cocktail);
-    if (photoUri) {
-      savePhoto(cocktailId, 'Imported Recipe', photoUri);
-    }
     resetForm();
     onClose();
   };
@@ -314,7 +354,9 @@ export function ImportModal({ visible, onClose }: Props) {
             showsVerticalScrollIndicator={false}
             contentContainerStyle={styles.body}
             keyboardShouldPersistTaps="handled"
+            keyboardDismissMode="on-drag"
           >
+            <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}><View>
             {!parsed ? (
               <>
                 {/* Photo capture buttons */}
@@ -370,6 +412,7 @@ export function ImportModal({ visible, onClose }: Props) {
                   placeholderTextColor={colors.textDim}
                   multiline
                   textAlignVertical="top"
+                  inputAccessoryViewID={Platform.OS === 'ios' ? IMPORT_INPUT_ACCESSORY : undefined}
                 />
                 {parseError ? (
                   <Text style={styles.errorText}>{parseError}</Text>
@@ -460,6 +503,52 @@ export function ImportModal({ visible, onClose }: Props) {
                   </ScrollView>
                 </View>
 
+                {/* Glass picker */}
+                <View style={styles.section}>
+                  <Text style={styles.label}>GLASS</Text>
+                  <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.pillRow}>
+                    {GLASS_OPTIONS.map((g) => (
+                      <Pressable
+                        key={g}
+                        style={[styles.pill, parsed.glass === g && styles.pillActive]}
+                        onPress={() => { setParsed({ ...parsed, glass: g }); Haptics.selectionAsync(); }}
+                      >
+                        <Text style={[styles.pillText, parsed.glass === g && styles.pillTextActive]}>{g}</Text>
+                      </Pressable>
+                    ))}
+                  </ScrollView>
+                </View>
+
+                {/* Method picker */}
+                <View style={styles.section}>
+                  <Text style={styles.label}>METHOD</Text>
+                  <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.pillRow}>
+                    {METHOD_OPTIONS.map((m) => (
+                      <Pressable
+                        key={m}
+                        style={[styles.pill, parsed.method === m && styles.pillActive]}
+                        onPress={() => { setParsed({ ...parsed, method: m }); Haptics.selectionAsync(); }}
+                      >
+                        <Text style={[styles.pillText, parsed.method === m && styles.pillTextActive]}>{m}</Text>
+                      </Pressable>
+                    ))}
+                  </ScrollView>
+                </View>
+
+                {/* Garnish */}
+                <View style={styles.section}>
+                  <Text style={styles.label}>GARNISH</Text>
+                  <TextInput
+                    style={styles.input}
+                    value={parsed.garnish}
+                    onChangeText={(t) => setParsed({ ...parsed, garnish: t })}
+                    placeholder="Orange peel, expressed"
+                    placeholderTextColor={colors.textDim}
+                    returnKeyType="done"
+                    blurOnSubmit={true}
+                  />
+                </View>
+
                 {/* Actions */}
                 <View style={styles.actionRow}>
                   <Pressable style={[styles.saveBtn, { flex: 1 }]} onPress={handleSave}>
@@ -471,8 +560,19 @@ export function ImportModal({ visible, onClose }: Props) {
                 </View>
               </>
             )}
+            </View></TouchableWithoutFeedback>
           </ScrollView>
         </KeyboardAvoidingView>
+
+        {Platform.OS === 'ios' && (
+          <InputAccessoryView nativeID={IMPORT_INPUT_ACCESSORY}>
+            <View style={styles.keyboardToolbar}>
+              <Pressable onPress={Keyboard.dismiss} style={styles.keyboardDoneBtn} hitSlop={8}>
+                <Text style={styles.keyboardDoneText}>Done</Text>
+              </Pressable>
+            </View>
+          </InputAccessoryView>
+        )}
       </SafeAreaView>
     </Modal>
   );
@@ -692,5 +792,23 @@ const styles = StyleSheet.create({
     fontSize: typography.sizes.md,
     fontWeight: typography.weights.semibold,
     color: colors.textSecondary,
+  },
+  keyboardToolbar: {
+    backgroundColor: colors.bgCard,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+  },
+  keyboardDoneBtn: {
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.xs,
+  },
+  keyboardDoneText: {
+    fontSize: typography.sizes.md,
+    fontWeight: typography.weights.bold,
+    color: colors.accentGold,
   },
 });

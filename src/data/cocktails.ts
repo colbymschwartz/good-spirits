@@ -1,6 +1,7 @@
 import { Cocktail } from '../types';
+import { MOCKTAILS } from './mocktails';
 
-export const COCKTAIL_DATABASE: Cocktail[] = [
+const CLASSIC_COCKTAILS: Cocktail[] = [
 {
   id: "old-fashioned",
   name: "Old Fashioned",
@@ -4893,3 +4894,5 @@ export const COCKTAIL_DATABASE: Cocktail[] = [
 }
 
 ];
+
+export const COCKTAIL_DATABASE: Cocktail[] = [...CLASSIC_COCKTAILS, ...MOCKTAILS];

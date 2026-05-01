@@ -59,7 +59,7 @@ export interface HistoryEra {
   keyInnovation: string;
 }
 
-export type SpiritType = 'whiskey' | 'gin' | 'rum' | 'tequila' | 'mezcal' | 'vodka' | 'brandy' | 'champagne' | 'other';
+export type SpiritType = 'whiskey' | 'gin' | 'rum' | 'tequila' | 'mezcal' | 'vodka' | 'brandy' | 'champagne' | 'non-alcoholic' | 'other';
 
 export interface SpiritIcons {
   [key: string]: string;

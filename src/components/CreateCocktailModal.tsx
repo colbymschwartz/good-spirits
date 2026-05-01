@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -9,6 +9,9 @@ import {
   StyleSheet,
   KeyboardAvoidingView,
   Platform,
+  Keyboard,
+  TouchableWithoutFeedback,
+  InputAccessoryView,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
@@ -21,10 +24,13 @@ import type { Cocktail } from '../types';
 interface Props {
   visible: boolean;
   onClose: () => void;
+  /** When provided, modal opens in edit mode pre-populated with this cocktail's data. */
+  cocktail?: Cocktail;
 }
 
 const GLASS_OPTIONS = ['rocks', 'coupe', 'highball', 'martini', 'nick-and-nora', 'tiki', 'copper-mug', 'flute', 'collins'];
 const METHOD_OPTIONS = ['Stir', 'Shake', 'Build', 'Muddle', 'Blend', 'Swizzle', 'Layer'];
+const CREATE_INPUT_ACCESSORY = 'create-input-accessory';
 
 function generateId(): string {
   return 'custom-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 7);
@@ -39,8 +45,11 @@ function parseIngredientId(specLine: string): string {
   return cleaned.toLowerCase().replace(/\s+/g, '-') || specLine.toLowerCase().replace(/\s+/g, '-');
 }
 
-export function CreateCocktailModal({ visible, onClose }: Props) {
+export function CreateCocktailModal({ visible, onClose, cocktail }: Props) {
   const saveCustomCocktail = useAppStore((s) => s.saveCustomCocktail);
+  const updateCustomCocktail = useAppStore((s) => s.updateCustomCocktail);
+
+  const isEdit = !!cocktail;
 
   const [name, setName] = useState('');
   const [spirit, setSpirit] = useState('whiskey');
@@ -66,6 +75,27 @@ export function CreateCocktailModal({ visible, onClose }: Props) {
     setRatioNotes('');
   };
 
+  // Hydrate form fields when opening in edit mode, reset when opening for create.
+  useEffect(() => {
+    if (!visible) return;
+    if (cocktail) {
+      const v = cocktail.variations[0];
+      setName(cocktail.name);
+      const builtInSpirit = (BASE_SPIRITS as readonly string[]).includes(cocktail.spirit);
+      setSpirit(builtInSpirit ? cocktail.spirit : 'other');
+      setCustomSpirit(builtInSpirit ? '' : cocktail.spirit);
+      setStyle(cocktail.style);
+      setSpecLines(v && v.spec.length > 0 ? v.spec : ['']);
+      setGlass(v?.glass || 'rocks');
+      setMethod(v?.method || 'Stir');
+      setGarnish(v?.garnish || '');
+      setSteps(v?.steps || '');
+      setRatioNotes(v?.ratioNotes || '');
+    } else {
+      resetForm();
+    }
+  }, [visible, cocktail]);
+
   const addSpec = () => setSpecLines([...specLines, '']);
   const removeSpec = (idx: number) => setSpecLines(specLines.filter((_, i) => i !== idx));
   const updateSpec = (idx: number, text: string) => {
@@ -84,17 +114,12 @@ export function CreateCocktailModal({ visible, onClose }: Props) {
 
     const filteredSpec = specLines.filter((s) => s.trim());
 
-    const cocktail: Cocktail = {
-      id: generateId(),
-      name: name.trim(),
-      style,
-      spirit: resolvedSpirit,
-      era: 'modern',
-      history: '',
-      tags: [],
-      isCustom: true,
-      variations: [{
-        name: 'My Recipe',
+    if (isEdit && cocktail) {
+      // Preserve existing id, era, history, tags, isCustom flag, brandRecs, and any extra variations.
+      const existingFirst = cocktail.variations[0];
+      const updatedVariation = {
+        ...existingFirst,
+        name: existingFirst?.name || 'My Recipe',
         canon: true,
         isCustom: true,
         spec: filteredSpec,
@@ -104,11 +129,43 @@ export function CreateCocktailModal({ visible, onClose }: Props) {
         garnish,
         steps,
         ratioNotes,
-        brandRecs: '',
-      }],
-    };
+        brandRecs: existingFirst?.brandRecs || '',
+      };
+      const updated: Cocktail = {
+        ...cocktail,
+        name: name.trim(),
+        style,
+        spirit: resolvedSpirit,
+        variations: [updatedVariation, ...cocktail.variations.slice(1)],
+      };
+      updateCustomCocktail(updated);
+    } else {
+      const newCocktail: Cocktail = {
+        id: generateId(),
+        name: name.trim(),
+        style,
+        spirit: resolvedSpirit,
+        era: 'modern',
+        history: '',
+        tags: [],
+        isCustom: true,
+        variations: [{
+          name: 'My Recipe',
+          canon: true,
+          isCustom: true,
+          spec: filteredSpec,
+          ingredients: filteredSpec.map(parseIngredientId),
+          glass,
+          method,
+          garnish,
+          steps,
+          ratioNotes,
+          brandRecs: '',
+        }],
+      };
+      saveCustomCocktail(newCocktail);
+    }
 
-    saveCustomCocktail(cocktail);
     resetForm();
     onClose();
   };
@@ -126,8 +183,8 @@ export function CreateCocktailModal({ visible, onClose }: Props) {
         {/* Header */}
         <View style={styles.header}>
           <View style={styles.headerLeft}>
-            <Text style={styles.headerTitle}>Create Cocktail</Text>
-            <Text style={styles.headerSubtitle}>Build your own recipe</Text>
+            <Text style={styles.headerTitle}>{isEdit ? 'Edit Cocktail' : 'Create Cocktail'}</Text>
+            <Text style={styles.headerSubtitle}>{isEdit ? 'Update your recipe' : 'Build your own recipe'}</Text>
           </View>
           <Pressable onPress={onClose} style={styles.closeBtn}>
             <Text style={styles.closeText}>Cancel</Text>
@@ -144,7 +201,9 @@ export function CreateCocktailModal({ visible, onClose }: Props) {
             showsVerticalScrollIndicator={false}
             contentContainerStyle={styles.body}
             keyboardShouldPersistTaps="handled"
+            keyboardDismissMode="on-drag"
           >
+            <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}><View>
             {/* Name */}
             <View style={styles.section}>
               <Text style={styles.label}>COCKTAIL NAME</Text>
@@ -285,6 +344,7 @@ export function CreateCocktailModal({ visible, onClose }: Props) {
                 placeholderTextColor={colors.textDim}
                 multiline
                 textAlignVertical="top"
+                inputAccessoryViewID={Platform.OS === 'ios' ? CREATE_INPUT_ACCESSORY : undefined}
               />
             </View>
 
@@ -299,6 +359,7 @@ export function CreateCocktailModal({ visible, onClose }: Props) {
                 placeholderTextColor={colors.textDim}
                 multiline
                 textAlignVertical="top"
+                inputAccessoryViewID={Platform.OS === 'ios' ? CREATE_INPUT_ACCESSORY : undefined}
               />
             </View>
 
@@ -308,10 +369,21 @@ export function CreateCocktailModal({ visible, onClose }: Props) {
               onPress={handleSave}
               disabled={!name.trim()}
             >
-              <Text style={styles.saveBtnText}>Create Cocktail</Text>
+              <Text style={styles.saveBtnText}>{isEdit ? 'Save Changes' : 'Create Cocktail'}</Text>
             </Pressable>
+            </View></TouchableWithoutFeedback>
           </ScrollView>
         </KeyboardAvoidingView>
+
+        {Platform.OS === 'ios' && (
+          <InputAccessoryView nativeID={CREATE_INPUT_ACCESSORY}>
+            <View style={styles.keyboardToolbar}>
+              <Pressable onPress={Keyboard.dismiss} style={styles.keyboardDoneBtn} hitSlop={8}>
+                <Text style={styles.keyboardDoneText}>Done</Text>
+              </Pressable>
+            </View>
+          </InputAccessoryView>
+        )}
       </SafeAreaView>
     </Modal>
   );
@@ -461,5 +533,23 @@ const styles = StyleSheet.create({
     fontSize: typography.sizes.lg,
     fontWeight: typography.weights.bold,
     color: colors.bgDark,
+  },
+  keyboardToolbar: {
+    backgroundColor: colors.bgCard,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+  },
+  keyboardDoneBtn: {
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.xs,
+  },
+  keyboardDoneText: {
+    fontSize: typography.sizes.md,
+    fontWeight: typography.weights.bold,
+    color: colors.accentGold,
   },
 });

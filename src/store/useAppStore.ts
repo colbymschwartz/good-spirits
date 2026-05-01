@@ -30,6 +30,7 @@ interface AppState {
   saveCustomVariation: (cocktailId: string, variation: Variation) => void;
   deleteCustomVariation: (cocktailId: string, varName: string) => void;
   saveCustomCocktail: (cocktail: Cocktail) => void;
+  updateCustomCocktail: (cocktail: Cocktail) => void;
   deleteCustomCocktail: (id: string) => void;
   setHasSeenOnboarding: () => void;
   hydrate: () => Promise<void>;
@@ -155,6 +156,16 @@ export const useAppStore = create<AppState>((set, get) => ({
   saveCustomCocktail: (cocktail) => {
     set((state) => {
       const customCocktails = [...state.customCocktails, cocktail];
+      storage.set('customCocktails', customCocktails);
+      return { customCocktails };
+    });
+  },
+
+  updateCustomCocktail: (cocktail) => {
+    set((state) => {
+      const customCocktails = state.customCocktails.map((c) =>
+        c.id === cocktail.id ? cocktail : c
+      );
       storage.set('customCocktails', customCocktails);
       return { customCocktails };
     });

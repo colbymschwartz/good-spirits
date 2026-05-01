@@ -26,6 +26,7 @@ import { ArtDecoDivider } from '../components/ArtDecoDivider';
 import { BatchCalculator } from '../components/BatchCalculator';
 import { RemixModal } from '../components/RemixModal';
 import { ShareCard } from '../components/ShareCard';
+import { CreateCocktailModal } from '../components/CreateCocktailModal';
 import { colors, typography, spacing, radius } from '../theme';
 import type { Cocktail, Variation } from '../types';
 import type { CocktailsStackParamList } from '../navigation/stacks/CocktailsStack';
@@ -89,6 +90,7 @@ export function CocktailDetailScreen() {
   const photos = useAppStore((s) => s.photos);
   const saveNote = useAppStore((s) => s.saveNote);
   const savePhoto = useAppStore((s) => s.savePhoto);
+  const deleteCustomCocktail = useAppStore((s) => s.deleteCustomCocktail);
 
   const cocktail = useMemo(() => {
     const base = COCKTAIL_DATABASE.find((c) => c.id === cocktailId);
@@ -105,6 +107,7 @@ export function CocktailDetailScreen() {
   const [activeVariation, setActiveVariation] = useState(variationIndex);
   const [showBatch, setShowBatch] = useState(false);
   const [showRemix, setShowRemix] = useState(false);
+  const [showEdit, setShowEdit] = useState(false);
   const [noteText, setNoteText] = useState('');
   const shareCapture = useRef<(() => Promise<void>) | null>(null);
   const [showSaved, setShowSaved] = useState(false);
@@ -223,6 +226,27 @@ export function CocktailDetailScreen() {
     Keyboard.dismiss();
   };
 
+  const handleDelete = () => {
+    if (!cocktail) return;
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    Alert.alert(
+      'Delete Cocktail',
+      `Are you sure you want to delete "${cocktail.name}"? This cannot be undone.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: () => {
+            deleteCustomCocktail(cocktail.id);
+            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+            navigation.goBack();
+          },
+        },
+      ]
+    );
+  };
+
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag">
@@ -285,6 +309,18 @@ export function CocktailDetailScreen() {
             <Text style={styles.actionBtnLargeIcon}>📤</Text>
             <Text style={styles.actionBtnLargeText}>Share</Text>
           </Pressable>
+          {cocktail.isCustom && (
+            <>
+              <Pressable onPress={() => setShowEdit(true)} style={styles.actionBtnLarge}>
+                <Text style={styles.actionBtnLargeIcon}>✏️</Text>
+                <Text style={styles.actionBtnLargeText}>Edit</Text>
+              </Pressable>
+              <Pressable onPress={handleDelete} style={styles.actionBtnLarge}>
+                <Text style={styles.actionBtnLargeIcon}>🗑️</Text>
+                <Text style={styles.actionBtnLargeText}>Delete</Text>
+              </Pressable>
+            </>
+          )}
         </View>
 
         <ArtDecoDivider />
@@ -481,6 +517,14 @@ export function CocktailDetailScreen() {
         variation={variation}
         onReady={handleShareReady}
       />
+
+      {cocktail.isCustom && (
+        <CreateCocktailModal
+          visible={showEdit}
+          onClose={() => setShowEdit(false)}
+          cocktail={cocktail}
+        />
+      )}
     </SafeAreaView>
   );
 }
@@ -542,10 +586,12 @@ const styles = StyleSheet.create({
   // Action row (prominent buttons below history)
   actionRow: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
     justifyContent: 'space-evenly',
     alignItems: 'center',
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.lg,
+    rowGap: spacing.sm,
   },
   actionBtnLarge: {
     alignItems: 'center',
